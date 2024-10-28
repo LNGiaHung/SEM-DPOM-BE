@@ -1,0 +1,83 @@
+components:
+  schemas:
+    Product:
+      type: object
+      properties:
+        _id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        price:
+          type: number
+        category:
+          type: string
+        stock:
+          type: integer
+        images:
+          type: array
+          items:
+            type: object
+            properties:
+              url:
+                type: string
+              public_id:
+                type: string
+        ratings:
+          type: array
+          items:
+            type: object
+            properties:
+              user:
+                type: string
+              rating:
+                type: number
+              review:
+                type: string
+        averageRating:
+          type: number
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Order:
+      type: object
+      properties:
+        _id:
+          type: string
+        user:
+          type: string
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              product:
+                type: string
+              quantity:
+                type: integer
+              price:
+                type: number
+        totalAmount:
+          type: number
+        shippingAddress:
+          type: object
+          properties:
+            address:
+              type: string
+            city:
+              type: string
+            postalCode:
+              type: string
+            country:
+              type: string
+        paymentStatus:
+          type: string
+          enum: [pending, completed, failed]
+        orderStatus:
+          type: string
+          enum: [processing, shipped, delivered, cancelled]
