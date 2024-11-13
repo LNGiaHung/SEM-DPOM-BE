@@ -4,8 +4,11 @@ const Product = require('../models/product.model');
 exports.createOrder = async (req, res) => {
   try {
     const { items, shippingAddress } = req.body;
-    
-    // Calculate total amount and verify stock
+
+    if (!items || !shippingAddress) {
+      return res.status(400).json({ message: 'Items and shipping address are required' });
+    }
+
     let totalAmount = 0;
     for (const item of items) {
       const product = await Product.findById(item.product);
@@ -16,8 +19,7 @@ exports.createOrder = async (req, res) => {
         return res.status(400).json({ message: `Insufficient stock for ${product.name}` });
       }
       totalAmount += product.price * item.quantity;
-      
-      // Update stock
+
       await Product.findByIdAndUpdate(item.product, {
         $inc: { stock: -item.quantity }
       });
@@ -61,16 +63,21 @@ exports.getOrderById = async (req, res) => {
 
 exports.updateOrderStatus = async (req, res) => {
   try {
-    const { orderStatus } = req.body;
-    const order = await Order.findByIdAndUpdate(
-      req.params.id,
-      { orderStatus },
-      { new: true }
-    );
+    const { orderID, status } = req.body; // status should be either 'In-transit' or 'Cancel'
+    const order = await Order.findByIdAndUpdate(orderID, { status }, { new: true });
     if (!order) {
       return res.status(404).json({ message: 'Order not found' });
     }
     res.json(order);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.getPendingOrders = async (req, res) => {
+  try {
+    const orders = await Order.find({ status: 'Pending' }, 'orderID orderDate total status');
+    res.json(orders);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

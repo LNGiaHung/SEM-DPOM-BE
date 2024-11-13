@@ -19,12 +19,16 @@ exports.getCart = async (req, res) => {
 exports.addToCart = async (req, res) => {
   try {
     const { productId, quantity } = req.body;
-    
+
+    if (!productId || !quantity) {
+      return res.status(400).json({ message: 'Product ID and quantity are required' });
+    }
+
     const product = await Product.findById(productId);
     if (!product) {
       return res.status(404).json({ message: 'Product not found' });
     }
-    
+
     if (product.stock < quantity) {
       return res.status(400).json({ message: 'Insufficient stock' });
     }
@@ -34,10 +38,7 @@ exports.addToCart = async (req, res) => {
       cart = await Cart.create({ user: req.user._id, items: [] });
     }
 
-    const existingItem = cart.items.find(item => 
-      item.product.toString() === productId
-    );
-
+    const existingItem = cart.items.find(item => item.product.toString() === productId);
     if (existingItem) {
       existingItem.quantity += quantity;
     } else {

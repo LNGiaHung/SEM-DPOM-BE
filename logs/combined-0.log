@@ -1,0 +1,18 @@
+2024-10-29T08:26:55: Connected to MongoDB successfully
+2024-10-29T08:26:55: Server running on port 5000
+2024-10-29T08:26:55: API Documentation available at http://localhost:5000/api-docs
+2024-10-29T08:26:55: Connected to MongoDB
+2024-10-29T12:01:50: Connected to MongoDB successfully
+2024-10-29T12:01:50: Server running on port 5000
+2024-10-29T12:01:50: API Documentation available at http://localhost:5000/api-docs
+2024-10-29T12:01:50: Connected to MongoDB
+2024-10-29T12:02:07: [0mGET /api-docs/ [36m304[0m 5.426 ms - -[0m
+2024-10-29T12:02:07: [0mGET /api-docs/swagger-ui.css [36m304[0m 14.268 ms - -[0m
+2024-10-29T12:02:07: [0mGET /api-docs/swagger-ui-bundle.js [36m304[0m 13.769 ms - -[0m
+2024-10-29T12:02:07: [0mGET /api-docs/swagger-ui-init.js [32m200[0m 1.932 ms - 15609[0m
+2024-10-29T12:02:07: [0mGET /api-docs/swagger-ui-standalone-preset.js [36m304[0m 14.488 ms - -[0m
+2024-10-29T12:02:08: [0mGET /api-docs/favicon-32x32.png [36m304[0m 2.187 ms - -[0m
+2024-10-30T13:36:53: Connected to MongoDB successfully
+2024-10-30T13:36:53: Server running on port 5000
+2024-10-30T13:36:53: API Documentation available at http://localhost:5000/api-docs
+2024-10-30T13:36:53: Connected to MongoDB

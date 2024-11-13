@@ -1,61 +1,44 @@
 const express = require('express');
-const mongoose = require('mongoose');
-const cors = require('cors');
-const morgan = require('morgan');
-const path = require('path');
 const swaggerUi = require('swagger-ui-express');
-require('dotenv').config();
-const swaggerSpec = require('./config/swagger.config');
-
-// Import routes
+const swaggerJsDoc = require('swagger-jsdoc');
 const authRoutes = require('./routes/auth.routes');
-const productRoutes = require('./routes/product.routes');
-const orderRoutes = require('./routes/order.routes');
 const cartRoutes = require('./routes/cart.routes');
+const userRoutes = require('./routes/user.routes');
+const orderRoutes = require('./routes/order.routes');
+const productRoutes = require('./routes/product.routes');
 
-// Create Express app
 const app = express();
 
 // Middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(cors());
+app.use(express.json()); // For parsing application/json
 
-// Logger
-if (process.env.NODE_ENV === 'development') {
-  app.use(morgan('dev'));
-}
+// Swagger setup
+const swaggerOptions = {
+  swaggerDefinition: {
+    openapi: '3.0.0',
+    info: {
+      title: 'E-commerce API',
+      version: '1.0.0',
+      description: 'API documentation for the E-commerce application',
+    },
+    servers: [
+      {
+        url: `http://localhost:${process.env.PORT || 5000}`,
+      },
+    ],
+  },
+  apis: ['./routes/*.js'], // Path to the API docs
+};
 
-// Database connection
-mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log('Connected to MongoDB'))
-  .catch((err) => console.error('MongoDB connection error:', err));
+const swaggerDocs = swaggerJsDoc(swaggerOptions);
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
-// Swagger Documentation
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-
-// Routes
-app.get('/', (req, res) => {
-  res.json({
-    message: 'Welcome to the E-Commerce API',
-    documentation: '/api-docs'
-  });
-});
-
-// Routes
+// Define routes
 app.use('/api/auth', authRoutes);
-app.use('/api/products', productRoutes);
-app.use('/api/orders', orderRoutes);
 app.use('/api/cart', cartRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/orders', orderRoutes);
+app.use('/api/products', productRoutes);
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({
-    status: 'error',
-    message: err.message || 'Internal Server Error'
-  });
-});
-
-// Make sure to export the app
+// Export the app
 module.exports = app;

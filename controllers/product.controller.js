@@ -1,9 +1,41 @@
 const Product = require('../models/product.model');
+const Category = require('../models/category.model');
+
+exports.getProductInventory = async (req, res) => {
+  try {
+    const products = await Product.find().populate('categoryId', 'name');
+    const formattedProducts = products.map(product => ({
+      name: product.title,
+      category: product.categoryId.name,
+      quantity: product.quantity
+    }));
+    res.json(formattedProducts);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
 
 exports.createProduct = async (req, res) => {
   try {
-    const product = await Product.create(req.body);
-    res.status(201).json(product);
+    const { name, categoryId } = req.body;
+
+    if (!name || !categoryId) {
+      return res.status(400).json({ message: 'Name and category ID are required' });
+    }
+
+    const newProduct = new Product({ title: name, categoryId });
+    await newProduct.save();
+    res.status(201).json(newProduct);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.getCategoryIdByName = async (req, res) => {
+  try {
+    const { name } = req.params;
+    const category = await Category.findOne({ name });
+    res.json(category ? category._id : null);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
