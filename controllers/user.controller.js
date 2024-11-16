@@ -3,15 +3,15 @@ const User = require('../models/user.model');
 
 exports.getStaffUsers = async (req, res) => {
   try {
-    const users = await User.find({ role: 'staff' }, 'userID firstName lastName mail phoneNumber gender');
+    const users = await User.find({ role: 'staff' }, 'userID firstName lastName email phoneNumber gender');
     const formattedUsers = users.map(user => ({
       userID: user._id,
       name: `${user.firstName} ${user.lastName}`,
-      mail: user.mail,
+      email: user.email,
       phoneNumber: user.phoneNumber,
       gender: user.gender
     }));
-    res.json(formattedUsers);
+    res.json(users);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
