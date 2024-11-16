@@ -1,8 +1,26 @@
-const express = require('express');
+import express from "express";
+import {
+  updateUser,
+  getStaffUsers,
+  createUser
+} from "../controllers/user.controller.js";
+
 const router = express.Router();
-const userController = require('../controllers/user.controller');
 
-router.get('/staff', userController.getStaffUsers);
-router.post('/', userController.createUser);
+/**
+ * @swagger
+ * tags:
+ *   name: User
+ *   description: User management
+ */
 
-module.exports = router;
+// Route to update user information
+router.put("/update", updateUser);
+
+// Route to get all staff users
+router.get("/staff", getStaffUsers);
+
+// Route to create a new user
+router.post("/", createUser);
+
+export default router; 

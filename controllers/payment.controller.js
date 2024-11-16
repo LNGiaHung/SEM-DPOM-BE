@@ -1,57 +1,71 @@
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
-const Order = require('../models/order.model');
+import { Payment } from "../models/payment.model.js";
 
-exports.createPaymentIntent = async (req, res) => {
-  try {
-    const { orderId } = req.body;
-    
-    const order = await Order.findById(orderId);
-    if (!order) {
-      return res.status(404).json({ message: 'Order not found' });
+/**
+ * @swagger
+ * /payments:
+ *   get:
+ *     summary: Get all payments
+ *     tags: [Payment]
+ *     responses:
+ *       200:
+ *         description: List of payments
+ *       500:
+ *         description: Internal server error
+ */
+export async function getAllPayments(req, res) {
+    try {
+        const payments = await Payment.find();
+        res.status(200).json({ success: true, payments });
+    } catch (error) {
+        console.log("Error in getAllPayments controller", error.message);
+        res.status(500).json({ success: false, message: "Internal server error" });
     }
+}
 
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(order.totalAmount * 100), // Stripe expects amounts in cents
-      currency: 'usd',
-      metadata: {
-        orderId: orderId,
-        userId: req.user._id.toString()
-      }
-    });
+/**
+ * @swagger
+ * /payments:
+ *   post:
+ *     summary: Create a new payment
+ *     tags: [Payment]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               paymentId:
+ *                 type: string
+ *                 example: payment_12345
+ *               method:
+ *                 type: string
+ *                 example: Credit Card
+ *               orderId:
+ *                 type: string
+ *                 example: 60d5ec49f1b2c8b1f8c8e8e8
+ *     responses:
+ *       201:
+ *         description: Payment created successfully
+ *       400:
+ *         description: Invalid input
+ *       500:
+ *         description: Internal server error
+ */
+export async function createPayment(req, res) {
+    try {
+        const { paymentId, method, orderId } = req.body;
 
-    res.json({
-      clientSecret: paymentIntent.client_secret
-    });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
+        if (!paymentId || !method || !orderId) {
+            return res.status(400).json({ success: false, message: "All fields are required" });
+        }
 
-exports.webhookHandler = async (req, res) => {
-  const sig = req.headers['stripe-signature'];
-  let event;
+        const newPayment = new Payment({ paymentId, method, orderId });
+        await newPayment.save();
 
-  try {
-    event = stripe.webhooks.constructEvent(
-      req.body,
-      sig,
-      process.env.STRIPE_WEBHOOK_SECRET
-    );
-  } catch (err) {
-    return res.status(400).send(`Webhook Error: ${err.message}`);
-  }
-
-  if (event.type === 'payment_intent.succeeded') {
-    const paymentIntent = event.data.object;
-    
-    await Order.findByIdAndUpdate(
-      paymentIntent.metadata.orderId,
-      {
-        paymentStatus: 'completed',
-        orderStatus: 'processing'
-      }
-    );
-  }
-
-  res.json({ received: true });
-};
+        res.status(201).json({ success: true, payment: newPayment });
+    } catch (error) {
+        console.log("Error in createPayment controller", error.message);
+        res.status(500).json({ success: false, message: "Internal server error" });
+    }
+} 

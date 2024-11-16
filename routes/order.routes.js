@@ -1,8 +1,34 @@
-const express = require('express');
+import express from 'express';
+import {
+  getOrders,
+  createOrder,
+  getOrderById,
+  updateOrderStatus,
+  getPendingOrders
+} from '../controllers/order.controller.js';
+
 const router = express.Router();
-const orderController = require('../controllers/order.controller');
 
-router.get('/process', orderController.getPendingOrders);
-router.patch('/process', orderController.updateOrderStatus);
+/**
+ * @swagger
+ * tags:
+ *   name: Order
+ *   description: Order management
+ */
 
-module.exports = router;
+// Route to get all orders for the authenticated user
+router.get('/', getOrders);
+
+// Route to create a new order
+router.post('/', createOrder);
+
+// Route to get an order by ID
+router.get('/:id', getOrderById);
+
+// Route to update the status of an order
+router.put('/status', updateOrderStatus);
+
+// Route to get all pending orders
+router.get('/pending', getPendingOrders);
+
+export default router;

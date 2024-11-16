@@ -1,43 +1,23 @@
-const express = require('express');
+import express from 'express';
+import { getCart, addToCart, updateCartItem } from '../controllers/cart.controller.js';
+// import { protectRoute } from '../middleware/protectRoute.js'; // Assuming you have a middleware for protecting routes
+
 const router = express.Router();
-const cartController = require('../controllers/cart.controller');
-const { protect } = require('../middleware/auth.middleware');
 
 /**
  * @swagger
- * /api/cart:
- *   get:
- *     tags: [Cart]
- *     summary: Get user's cart
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Cart details
- *   post:
- *     tags: [Cart]
- *     summary: Add item to cart
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - productId
- *               - quantity
- *             properties:
- *               productId:
- *                 type: string
- *               quantity:
- *                 type: integer
- *     responses:
- *       200:
- *         description: Item added to cart
+ * tags:
+ *   name: Cart
+ *   description: Cart management
  */
-router.get('/', protect, cartController.getCart);
-router.post('/', protect, cartController.addToCart);
 
-module.exports = router;
+// Route to get the user's cart
+router.get('/', getCart);
+
+// Route to add a product to the cart
+router.post('/', addToCart);
+
+// Route to update an item in the cart
+router.put('/item', updateCartItem);
+
+export default router;
