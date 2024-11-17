@@ -18,6 +18,46 @@ const getUserIdFromToken = (req) => {
 
 /**
  * @swagger
+ * /cart/details:
+ *   get:
+ *     summary: Get the user's cart with product details
+ *     tags: [Cart]
+ *     responses:
+ *       200:
+ *         description: Cart retrieved successfully with product details
+ *       404:
+ *         description: Cart not found
+ *       500:
+ *         description: Internal server error
+ */
+export const getCartWithDetails = async (req, res) => {
+  try {
+    const userId = getUserIdFromToken(req); // Get user ID from token
+    const cart = await Cart.findOne({ user: userId }).populate('items.product');
+
+    if (!cart) {
+      return res.status(404).json({ message: 'Cart not found' });
+    }
+
+    // Map cart items to include product details
+    const cartDetails = await Promise.all(cart.items.map(async (item) => {
+      const product = await Product.findById(item.product);
+      return {
+        productId: product._id,
+        productName: product.name, // Assuming the product model has a 'name' field
+        productPrice: product.price, // Assuming the product model has a 'price' field
+        quantity: item.quantity,
+      };
+    }));
+
+    res.json({ ...cart._doc, items: cartDetails }); // Return cart with detailed items
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/**
+ * @swagger
  * /cart:
  *   get:
  *     summary: Get the user's cart
