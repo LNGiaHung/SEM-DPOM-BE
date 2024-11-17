@@ -1,8 +1,8 @@
 import { Cart } from "../models/cart.model.js";
 import { ProductVariant } from "../models/productVariant.model.js";
-import { Product } from "../models/product.model.js"; // Import Product model
 import jwt from "jsonwebtoken"; // Import jwt for token verification
 import { ENV_VARS } from "../config/envVars.js"; // Import environment variables
+import mongoose from 'mongoose'; // Ensure mongoose is imported
 
 // Helper function to get user ID from token
 const getUserIdFromToken = (req) => {
@@ -118,49 +118,69 @@ export const getCart = async (req, res) => {
  */
 export const addToCart = async (req, res) => {
   try {
-    const userId = getUserIdFromToken(req); // Get user ID from token
+    // Extract user ID from the token
+    const userId = getUserIdFromToken(req);
+
+    // Destructure productVariantId and quantity from the request body
     const { productVariantId, quantity } = req.body;
 
-    if (!productVariantId || !quantity) {
-      return res.status(400).json({ message: 'Product variant ID and quantity are required' });
+    // Validate the request body
+    if (!productVariantId || !quantity || typeof productVariantId !== 'string' || productVariantId.trim() === '') {
+      return res.status(400).json({ message: 'Product variant ID and valid quantity are required' });
     }
 
-    const productVariant = await ProductVariant.findById(productVariantId);
+    // Trim whitespace and convert to ObjectId
+    const trimmedProductVariantId = productVariantId.trim();
+    const objectId = new mongoose.Types.ObjectId(trimmedProductVariantId); // Use 'new' to create ObjectId
+
+    // Fetch the product variant by ID
+    const productVariant = await ProductVariant.findById(objectId);
     if (!productVariant) {
       return res.status(404).json({ message: 'Product variant not found' });
     }
 
-    if (productVariant.quantity < quantity) {
-      return res.status(400).json({ message: 'Insufficient stock' });
-    }
-
-    // Fetch the associated product to get the price
-    const product = await Product.findById(productVariant.productId);
-    if (!product) {
-      return res.status(404).json({ message: 'Associated product not found' });
-    }
-
+    // Find or create the user's cart
     let cart = await Cart.findOne({ user: userId });
     if (!cart) {
       cart = await Cart.create({ user: userId, items: [] });
     }
 
-    const existingItem = cart.items.find(item => item.productVariant.toString() === productVariantId);
+    // Check if the item already exists in the cart
+    const existingItem = cart.items.find(
+      (item) => item.productVariant && item.productVariant.toString() === objectId.toString() // Ensure item.productVariant is defined
+    );
+
     if (existingItem) {
+      // Update the quantity of the existing item
       existingItem.quantity += quantity;
+
+      // Check if the updated quantity exceeds available stock
+      if (existingItem.quantity > productVariant.quantity) {
+        return res.status(400).json({
+          message: `Stock exceeded. Maximum available stock: ${productVariant.quantity}`,
+        });
+      }
     } else {
-      cart.items.push({ productVariant: productVariantId, quantity });
+      // Add a new item to the cart
+      cart.items.push({ productVariant: objectId, quantity });
     }
 
-    // Calculate total amount based on the product price
+    // Log the cart items before calculating total
+    console.log("Cart Items:", cart.items); // Log the items to check their structure
+
+    // Recalculate the total amount based on product prices
     cart.totalAmount = await calculateTotal(cart.items);
+
+    // Save the updated cart
     await cart.save();
 
-    res.json(cart);
+    res.status(200).json(cart);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Error adding to cart:', error);
+    res.status(500).json({ message: 'Internal server error' });
   }
 };
+
 
 /**
  * @swagger
@@ -224,7 +244,19 @@ export const updateCartItem = async (req, res) => {
 const calculateTotal = async (items) => {
   const productVariantPromises = items.map(async (item) => {
     const productVariant = await ProductVariant.findById(item.productVariant).populate('productId'); // Populate productId to get product details
+
+    // Check if productVariant is null
+    if (!productVariant) {
+      throw new Error(`Product variant not found for ID: ${item.productVariant}`);
+    }
+
     const product = productVariant.productId; // Get the associated product
+
+    // Check if product is null
+    if (!product) {
+      throw new Error(`Product not found for ProductVariant ID: ${productVariant._id}`);
+    }
+
     return {
       price: product.price, // Use product price for calculation
       quantity: item.quantity,

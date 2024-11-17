@@ -336,7 +336,6 @@ const getUserIdFromToken = (req) => {
  */
 export const recommendProducts = async (req, res) => {
   try {
-    const userId = getUserIdFromToken(req); // Get user ID from token
     const { productName } = req.body;
 
     if (!productName) {
@@ -351,7 +350,7 @@ export const recommendProducts = async (req, res) => {
     }
 
     // Get recommendations based on the similar product
-    const recommendations = await getRecommendedProducts(similarProduct.title, userId);
+    const recommendations = await getRecommendedProducts(similarProduct.title);
 
     // Extract product names from recommendations, ensuring they are defined
     const recommendedProductNames = recommendations

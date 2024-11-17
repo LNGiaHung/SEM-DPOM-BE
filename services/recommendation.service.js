@@ -9,7 +9,6 @@ export const getRecommendedProducts = async (productName, userID) => {
   try {
     const response = await axios.post('http://127.0.0.1:5000/recommend', {
       clicked_product: productName,
-      customer_id: userID
     });
 
     // Assuming the response data contains a list of recommended products
