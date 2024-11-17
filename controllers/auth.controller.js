@@ -164,8 +164,6 @@ export async function login(req, res) {
 
 		user.refreshToken = refreshToken;
 
-		await user.save();
-
 		setRefreshTokenCookie(refreshToken, res);
 
 		res.status(200).json({

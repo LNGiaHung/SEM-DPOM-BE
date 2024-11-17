@@ -204,70 +204,6 @@ export const createUser = async (req, res) => {
   }
 };
 
-// Get user by ID
-/**
- * @swagger
- * /users/{id}:
- *   get:
- *     summary: Get user information by ID
- *     tags: [User]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         description: The ID of the user to retrieve
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: User retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 user:
- *                   type: object
- *                   properties:
- *                     userID:
- *                       type: string
- *                     name:
- *                       type: string
- *                     email:
- *                       type: string
- *                     phoneNumber:
- *                       type: string
- *                     gender:
- *                       type: string
- *       404:
- *         description: User not found
- *       500:
- *         description: Internal server error
- */
-export const getUserById = async (req, res) => {
-  try {
-    const userId = req.params.id; // Get user ID from the request parameters
-
-    const user = await User.findById(userId);
-
-    if (!user) {
-      return res.status(404).json({ success: false, message: "User not found" });
-    }
-
-    const { password, ...userWithoutPassword } = user._doc; // Exclude password from response
-
-    res.status(200).json({
-      success: true,
-      user: userWithoutPassword,
-    });
-  } catch (error) {
-    console.error("Error in getUserById controller:", error);
-    res.status(500).json({ success: false, message: "Internal server error", error: error.message });
-  }
-};
-
 // Get current logged-in user information
 /**
  * @swagger
@@ -305,22 +241,17 @@ export const getUserById = async (req, res) => {
  */
 export const getCurrentUser = async (req, res) => {
   try {
-    const token = req.cookies[COOKIE_ACCESS_TOKEN]; // Ensure this matches the cookie name
+    const authHeader = req.headers.authorization;
+    const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : null;
 
     if (!token) {
       return res.status(401).json({ success: false, message: "Unauthorized - No Token Provided" });
     }
 
     const decoded = jwt.verify(token, ENV_VARS.JWT_SECRET);
-
-    if (!decoded || !decoded.userId) {
-      return res.status(401).json({ success: false, message: "Unauthorized - Invalid Token" });
-    }
-
     const userId = decoded.userId; // Get user ID from the decoded token
 
     const user = await User.findById(userId);
-
     if (!user) {
       return res.status(404).json({ success: false, message: "User not found" });
     }

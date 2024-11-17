@@ -3,9 +3,9 @@ import {
   updateUser,
   getStaffUsers,
   createUser,
-  getUserById,
   getCurrentUser
 } from "../controllers/user.controller.js";
+import { protectRoute } from "../middleware/protectRoute.js";
 
 const router = express.Router();
 
@@ -25,10 +25,7 @@ router.get("/staff", getStaffUsers);
 // Route to create a new user
 router.post("/", createUser);
 
-// Route to get user by ID
-router.get("/:id", getUserById);
-
 // Route to get current logged-in user information
-router.get("/me", getCurrentUser);
+router.get("/me", protectRoute, getCurrentUser);
 
 export default router; 
