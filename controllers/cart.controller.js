@@ -1,5 +1,6 @@
 import { Cart } from "../models/cart.model.js";
-import { Product } from "../models/product.model.js";
+import { ProductVariant } from "../models/productVariant.model.js";
+import { Product } from "../models/product.model.js"; // Import Product model
 import jwt from "jsonwebtoken"; // Import jwt for token verification
 import { ENV_VARS } from "../config/envVars.js"; // Import environment variables
 
@@ -33,7 +34,7 @@ const getUserIdFromToken = (req) => {
 export const getCartWithDetails = async (req, res) => {
   try {
     const userId = getUserIdFromToken(req); // Get user ID from token
-    const cart = await Cart.findOne({ user: userId }).populate('items.product');
+    const cart = await Cart.findOne({ user: userId }).populate('items.productVariant');
 
     if (!cart) {
       return res.status(404).json({ message: 'Cart not found' });
@@ -41,11 +42,12 @@ export const getCartWithDetails = async (req, res) => {
 
     // Map cart items to include product details
     const cartDetails = await Promise.all(cart.items.map(async (item) => {
-      const product = await Product.findById(item.product);
+      const productVariant = await ProductVariant.findById(item.productVariant).populate('productId'); // Populate productId to get product details
+      const product = productVariant.productId; // Get the associated product
       return {
         productId: product._id,
-        productName: product.title, // Assuming the product model has a 'name' field
-        productPrice: product.price, // Assuming the product model has a 'price' field
+        productName: product.title, // Assuming the product model has a 'title' field
+        productPrice: product.price, // Use product price for calculation
         quantity: item.quantity,
       };
     }));
@@ -73,7 +75,7 @@ export const getCartWithDetails = async (req, res) => {
 export const getCart = async (req, res) => {
   try {
     const userId = getUserIdFromToken(req); // Get user ID from token
-    let cart = await Cart.findOne({ user: userId }).populate('items.product');
+    let cart = await Cart.findOne({ user: userId }).populate('items.productVariant');
 
     if (!cart) {
       cart = await Cart.create({ user: userId, items: [] });
@@ -89,7 +91,7 @@ export const getCart = async (req, res) => {
  * @swagger
  * /cart:
  *   post:
- *     summary: Add a product to the cart
+ *     summary: Add a product variant to the cart
  *     tags: [Cart]
  *     requestBody:
  *       required: true
@@ -98,7 +100,7 @@ export const getCart = async (req, res) => {
  *           schema:
  *             type: object
  *             properties:
- *               productId:
+ *               productVariantId:
  *                 type: string
  *                 example: 60d5ec49f1b2c8b1f8c8e8e8
  *               quantity:
@@ -106,30 +108,36 @@ export const getCart = async (req, res) => {
  *                 example: 2
  *     responses:
  *       200:
- *         description: Product added to cart successfully
+ *         description: Product variant added to cart successfully
  *       400:
- *         description: Product ID and quantity are required or insufficient stock
+ *         description: Product variant ID and quantity are required or insufficient stock
  *       404:
- *         description: Product not found
+ *         description: Product variant not found
  *       500:
  *         description: Internal server error
  */
 export const addToCart = async (req, res) => {
   try {
     const userId = getUserIdFromToken(req); // Get user ID from token
-    const { productId, quantity } = req.body;
+    const { productVariantId, quantity } = req.body;
 
-    if (!productId || !quantity) {
-      return res.status(400).json({ message: 'Product ID and quantity are required' });
+    if (!productVariantId || !quantity) {
+      return res.status(400).json({ message: 'Product variant ID and quantity are required' });
     }
 
-    const product = await Product.findById(productId);
-    if (!product) {
-      return res.status(404).json({ message: 'Product not found' });
+    const productVariant = await ProductVariant.findById(productVariantId);
+    if (!productVariant) {
+      return res.status(404).json({ message: 'Product variant not found' });
     }
 
-    if (product.stock < quantity) {
+    if (productVariant.quantity < quantity) {
       return res.status(400).json({ message: 'Insufficient stock' });
+    }
+
+    // Fetch the associated product to get the price
+    const product = await Product.findById(productVariant.productId);
+    if (!product) {
+      return res.status(404).json({ message: 'Associated product not found' });
     }
 
     let cart = await Cart.findOne({ user: userId });
@@ -137,13 +145,14 @@ export const addToCart = async (req, res) => {
       cart = await Cart.create({ user: userId, items: [] });
     }
 
-    const existingItem = cart.items.find(item => item.product.toString() === productId);
+    const existingItem = cart.items.find(item => item.productVariant.toString() === productVariantId);
     if (existingItem) {
       existingItem.quantity += quantity;
     } else {
-      cart.items.push({ product: productId, quantity });
+      cart.items.push({ productVariant: productVariantId, quantity });
     }
 
+    // Calculate total amount based on the product price
     cart.totalAmount = await calculateTotal(cart.items);
     await cart.save();
 
@@ -166,7 +175,7 @@ export const addToCart = async (req, res) => {
  *           schema:
  *             type: object
  *             properties:
- *               productId:
+ *               productVariantId:
  *                 type: string
  *                 example: 60d5ec49f1b2c8b1f8c8e8e8
  *               quantity:
@@ -183,14 +192,14 @@ export const addToCart = async (req, res) => {
 export const updateCartItem = async (req, res) => {
   try {
     const userId = getUserIdFromToken(req); // Get user ID from token
-    const { productId, quantity } = req.body;
+    const { productVariantId, quantity } = req.body;
 
     const cart = await Cart.findOne({ user: userId });
     if (!cart) {
       return res.status(404).json({ message: 'Cart not found' });
     }
 
-    const itemIndex = cart.items.findIndex(item => item.product.toString() === productId);
+    const itemIndex = cart.items.findIndex(item => item.productVariant.toString() === productVariantId);
 
     if (itemIndex === -1) {
       return res.status(404).json({ message: 'Item not found in cart' });
@@ -211,12 +220,21 @@ export const updateCartItem = async (req, res) => {
   }
 };
 
+// Function to calculate total amount in the cart
 const calculateTotal = async (items) => {
-  const productPromises = items.map(item => Product.findById(item.product));
-  const products = await Promise.all(productPromises);
+  const productVariantPromises = items.map(async (item) => {
+    const productVariant = await ProductVariant.findById(item.productVariant).populate('productId'); // Populate productId to get product details
+    const product = productVariant.productId; // Get the associated product
+    return {
+      price: product.price, // Use product price for calculation
+      quantity: item.quantity,
+    };
+  });
 
-  return items.reduce((total, item, index) => {
-    const product = products[index];
-    return total + (product.price * item.quantity);
+  const productVariantDetails = await Promise.all(productVariantPromises);
+
+  // Calculate the total price based on the product price
+  return productVariantDetails.reduce((total, { price, quantity }) => {
+    return total + (price * quantity); // Use product price for calculation
   }, 0);
 };

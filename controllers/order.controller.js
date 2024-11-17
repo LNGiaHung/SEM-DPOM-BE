@@ -1,5 +1,6 @@
 import { Order } from "../models/order.model.js";
-import { Product } from "../models/product.model.js";
+import { Cart } from "../models/cart.model.js"; // Import Cart model
+import { Product } from "../models/product.model.js"; // Import Product model
 import jwt from "jsonwebtoken"; // Import jwt for token verification
 import { ENV_VARS } from "../config/envVars.js"; // Import environment variables
 
@@ -42,69 +43,59 @@ export const getOrders = async (req, res) => {
  * @swagger
  * /orders:
  *   post:
- *     summary: Create a new order
+ *     summary: Create a new order from the user's cart
  *     tags: [Order]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               items:
- *                 type: array
- *                 items:
- *                   type: object
- *                   properties:
- *                     product:
- *                       type: string
- *                       example: 60d5ec49f1b2c8b1f8c8e8e8
- *                     quantity:
- *                       type: number
- *                       example: 2
- *               shippingAddress:
- *                 type: string
- *                 example: "123 Main St, City, Country"
  *     responses:
  *       201:
  *         description: Order created successfully
  *       400:
- *         description: Invalid input
+ *         description: Invalid input or insufficient stock
+ *       404:
+ *         description: Cart not found
  *       500:
  *         description: Internal server error
  */
 export const createOrder = async (req, res) => {
   try {
     const userId = getUserIdFromToken(req); // Get user ID from token
-    const { items, shippingAddress } = req.body;
 
-    if (!items || !shippingAddress) {
-      return res.status(400).json({ success: false, message: 'Items and shipping address are required' });
+    // Fetch the user's cart
+    const cart = await Cart.findOne({ user: userId });
+    if (!cart) {
+      return res.status(404).json({ success: false, message: 'Cart not found' });
     }
 
-    let totalAmount = 0;
-    for (const item of items) {
-      const product = await Product.findById(item.product);
+    // Use the total amount from the cart
+    const totalAmount = cart.totalAmount;
+
+    // Validate stock and update product stock
+    for (const item of cart.items) {
+      const product = await Product.findById(item.productVariant); // Assuming productVariant references Product
       if (!product) {
-        return res.status(404).json({ success: false, message: `Product ${item.product} not found` });
+        return res.status(404).json({ success: false, message: `Product not found` });
       }
       if (product.stock < item.quantity) {
-        return res.status(400).json({ success: false, message: `Insufficient stock for ${product.name}` });
+        return res.status(400).json({ success: false, message: `Insufficient stock for ${product.title}` });
       }
-      totalAmount += product.price * item.quantity;
 
       // Update product stock
-      await Product.findByIdAndUpdate(item.product, {
+      await Product.findByIdAndUpdate(item.productVariant, {
         $inc: { stock: -item.quantity }
       });
     }
 
+    // Create the order
     const order = await Order.create({
-      user: userId, // Use the user ID from the token
-      items,
-      totalAmount,
-      shippingAddress
+      userId: userId, // Use the user ID from the token
+      items: cart.items, // You may want to store items in a separate OrderProduct model
+      total: totalAmount, // Use the total amount from the cart
+      shippingAddress: req.body.shippingAddress // Assuming you pass shipping address in the request body
     });
+
+    // Optionally, clear the cart after creating the order
+    cart.items = [];
+    cart.totalAmount = 0;
+    await cart.save();
 
     res.status(201).json({ success: true, order });
   } catch (error) {
