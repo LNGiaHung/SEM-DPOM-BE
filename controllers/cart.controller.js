@@ -19,47 +19,6 @@ const getUserIdFromToken = (req) => {
 
 /**
  * @swagger
- * /cart/details:
- *   get:
- *     summary: Get the user's cart with product details
- *     tags: [Cart]
- *     responses:
- *       200:
- *         description: Cart retrieved successfully with product details
- *       404:
- *         description: Cart not found
- *       500:
- *         description: Internal server error
- */
-export const getCartWithDetails = async (req, res) => {
-  try {
-    const userId = getUserIdFromToken(req); // Get user ID from token
-    const cart = await Cart.findOne({ user: userId }).populate('items.productVariant');
-
-    if (!cart) {
-      return res.status(404).json({ message: 'Cart not found' });
-    }
-
-    // Map cart items to include product details
-    const cartDetails = await Promise.all(cart.items.map(async (item) => {
-      const productVariant = await ProductVariant.findById(item.productVariant).populate('productId'); // Populate productId to get product details
-      const product = productVariant.productId; // Get the associated product
-      return {
-        productId: product._id,
-        productName: product.title, // Assuming the product model has a 'title' field
-        productPrice: product.price, // Use product price for calculation
-        quantity: item.quantity,
-      };
-    }));
-
-    res.json({ ...cart._doc, items: cartDetails }); // Return cart with detailed items
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-/**
- * @swagger
  * /cart:
  *   get:
  *     summary: Get the user's cart
@@ -81,7 +40,21 @@ export const getCart = async (req, res) => {
       cart = await Cart.create({ user: userId, items: [] });
     }
 
-    res.json(cart);
+    // Map cart items to include product details, size, and color
+    const cartDetails = await Promise.all(cart.items.map(async (item) => {
+      const productVariant = await ProductVariant.findById(item.productVariant).populate('productId'); // Populate productId to get product details
+      const product = productVariant.productId; // Get the associated product
+      return {
+        productId: product._id,
+        productName: product.title, // Assuming the product model has a 'title' field
+        productPrice: product.price, // Use product price for calculation
+        quantity: item.quantity,
+        color: productVariant.color, // Include color
+        size: productVariant.size,   // Include size
+      };
+    }));
+
+    res.json({ ...cart._doc, items: cartDetails }); // Return cart with detailed items including size and color
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

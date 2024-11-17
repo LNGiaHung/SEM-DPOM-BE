@@ -1,5 +1,5 @@
 import express from 'express';
-import { getCart, addToCart, updateCartItem, getCartWithDetails } from '../controllers/cart.controller.js';
+import { getCart, addToCart, updateCartItem } from '../controllers/cart.controller.js';
 // import { protectRoute } from '../middleware/protectRoute.js'; // Assuming you have a middleware for protecting routes
 
 const router = express.Router();
@@ -10,9 +10,6 @@ const router = express.Router();
  *   name: Cart
  *   description: Cart management
  */
-
-// Route to get the user's cart with product details
-router.get('/details', getCartWithDetails);
 
 // Route to get the user's cart
 router.get('/', getCart);
