@@ -1,6 +1,7 @@
 import { User } from "../models/user.model.js";
 import jwt from "jsonwebtoken"; // Import jwt for token verification
 import { ENV_VARS } from "../config/envVars.js"; // Import environment variables
+import mongoose from "mongoose";
 
 // Update user information
 /**
@@ -127,6 +128,8 @@ export const getStaffUsers = async (req, res) => {
  *           schema:
  *             type: object
  *             properties:
+ *               _id:
+ *                 type: string
  *               username:
  *                 type: string
  *                 example: johndoe
@@ -164,13 +167,32 @@ export const getStaffUsers = async (req, res) => {
  */
 export const createUser = async (req, res) => {
   try {
-    const { username, role, password, firstName, lastName, email, gender, address, phoneNumber } = req.body;
+    const { _id, username, role, password, firstName, lastName, email, gender, address, phoneNumber } = req.body;
 
+    // Check for required fields
     if (!username || !role || !password || !firstName || !lastName || !email) {
       return res.status(400).json({ success: false, message: 'All fields are required' });
     }
 
-    const newUser = new User({ username, role, password, firstName, lastName, email, gender, address, phoneNumber });
+    // Check if the provided _id is valid (if provided)
+    if (_id && !mongoose.Types.ObjectId.isValid(_id)) {
+      return res.status(400).json({ success: false, message: 'Invalid user ID format' });
+    }
+
+    // Create a new user with the provided _id or let MongoDB generate one
+    const newUser = new User({ 
+      _id: _id || undefined, // Use provided _id or let MongoDB generate one
+      username, 
+      role, 
+      password, 
+      firstName, 
+      lastName, 
+      email, 
+      gender, 
+      address, 
+      phoneNumber 
+    });
+
     await newUser.save();
     res.status(201).json({ success: true, user: newUser });
   } catch (error) {
