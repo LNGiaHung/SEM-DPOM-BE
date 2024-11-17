@@ -1,5 +1,20 @@
 import { Order } from "../models/order.model.js";
 import { Product } from "../models/product.model.js";
+import jwt from "jsonwebtoken"; // Import jwt for token verification
+import { ENV_VARS } from "../config/envVars.js"; // Import environment variables
+
+// Helper function to get user ID from token
+const getUserIdFromToken = (req) => {
+  const authHeader = req.headers.authorization;
+  const token = authHeader && authHeader.startsWith("Bearer ") ? authHeader.split(" ")[1] : null;
+
+  if (!token) {
+    throw new Error("Unauthorized - No Token Provided");
+  }
+
+  const decoded = jwt.verify(token, ENV_VARS.JWT_SECRET);
+  return decoded.userId; // Assuming the userId is stored in the token
+};
 
 /**
  * @swagger
@@ -15,7 +30,8 @@ import { Product } from "../models/product.model.js";
  */
 export const getOrders = async (req, res) => {
   try {
-    const orders = await Order.find({ user: req.user._id }).populate('items.product');
+    const userId = getUserIdFromToken(req); // Get user ID from token
+    const orders = await Order.find({ user: userId }).populate('items.product');
     res.status(200).json({ success: true, orders });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -59,6 +75,7 @@ export const getOrders = async (req, res) => {
  */
 export const createOrder = async (req, res) => {
   try {
+    const userId = getUserIdFromToken(req); // Get user ID from token
     const { items, shippingAddress } = req.body;
 
     if (!items || !shippingAddress) {
@@ -83,7 +100,7 @@ export const createOrder = async (req, res) => {
     }
 
     const order = await Order.create({
-      user: req.user._id,
+      user: userId, // Use the user ID from the token
       items,
       totalAmount,
       shippingAddress

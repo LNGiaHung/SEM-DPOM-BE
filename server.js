@@ -36,12 +36,12 @@ app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/users", userRoutes);
 
 app.use("/api/v1/products", productRoutes);
-app.use("/api/v1/orders", orderRoutes);
-app.use("/api/v1/payments", paymentRoutes);
+app.use("/api/v1/orders", protectRoute , orderRoutes);
+app.use("/api/v1/payments", protectRoute, paymentRoutes);
 app.use("/api/v1/categories", categoryRoutes);
 app.use("/api/v1/suppliers", supplierRoutes);
 // app.use("/api/v1/reviews", reviewRoutes);
-app.use("/api/v1/cart", cartRoutes); // Add the cart routes
+app.use("/api/v1/cart", protectRoute, cartRoutes); // Add the cart routes
 
 
 if (ENV_VARS.NODE_ENV === "production") {

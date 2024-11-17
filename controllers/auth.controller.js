@@ -26,6 +26,18 @@ import { ENV_VARS } from "../config/envVars.js";
  *               username:
  *                 type: string
  *                 example: username123
+ *               firstName:
+ *                 type: string
+ *                 example: John
+ *               lastName:
+ *                 type: string
+ *                 example: Doe
+ *               gender:
+ *                 type: string
+ *                 example: Male
+ *               phoneNumber:
+ *                 type: string
+ *                 example: 123-456-7890
  *     responses:
  *       201:
  *         description: User signed up successfully
@@ -36,9 +48,9 @@ import { ENV_VARS } from "../config/envVars.js";
  */
 export async function signup(req, res) {
 	try {
-		const { email, password, username } = req.body;
+		const { email, password, username, firstName, lastName, gender, phoneNumber } = req.body;
 
-		if (!email || !password || !username) {
+		if (!email || !password || !username || !firstName || !lastName || !gender || !phoneNumber) {
 			return res.status(400).json({ success: false, message: "All fields are required" });
 		}
 
@@ -67,15 +79,15 @@ export async function signup(req, res) {
 		const salt = await bcryptjs.genSalt(10);
 		const hashedPassword = await bcryptjs.hash(password, salt);
 
-		const PROFILE_PICS = ["/avatar1.png", "/avatar2.png", "/avatar3.png"];
-
-		const image = PROFILE_PICS[Math.floor(Math.random() * PROFILE_PICS.length)];
-
 		const newUser = new User({
 			email,
 			password: hashedPassword,
 			username,
-			image,
+			firstName,
+			lastName,
+			gender,
+			phoneNumber,
+			role: 'customer',
 		});
 
 		const accessToken = generateAccessToken(newUser._id);

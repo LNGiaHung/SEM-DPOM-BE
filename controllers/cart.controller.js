@@ -1,5 +1,20 @@
 import { Cart } from "../models/cart.model.js";
 import { Product } from "../models/product.model.js";
+import jwt from "jsonwebtoken"; // Import jwt for token verification
+import { ENV_VARS } from "../config/envVars.js"; // Import environment variables
+
+// Helper function to get user ID from token
+const getUserIdFromToken = (req) => {
+  const authHeader = req.headers.authorization;
+  const token = authHeader && authHeader.startsWith("Bearer ") ? authHeader.split(" ")[1] : null;
+
+  if (!token) {
+    throw new Error("Unauthorized - No Token Provided");
+  }
+
+  const decoded = jwt.verify(token, ENV_VARS.JWT_SECRET);
+  return decoded.userId; // Assuming the userId is stored in the token
+};
 
 /**
  * @swagger
@@ -17,10 +32,11 @@ import { Product } from "../models/product.model.js";
  */
 export const getCart = async (req, res) => {
   try {
-    let cart = await Cart.findOne({ user: req.user._id }).populate('items.product');
+    const userId = getUserIdFromToken(req); // Get user ID from token
+    let cart = await Cart.findOne({ user: userId }).populate('items.product');
 
     if (!cart) {
-      cart = await Cart.create({ user: req.user._id, items: [] });
+      cart = await Cart.create({ user: userId, items: [] });
     }
 
     res.json(cart);
@@ -60,6 +76,7 @@ export const getCart = async (req, res) => {
  */
 export const addToCart = async (req, res) => {
   try {
+    const userId = getUserIdFromToken(req); // Get user ID from token
     const { productId, quantity } = req.body;
 
     if (!productId || !quantity) {
@@ -75,9 +92,9 @@ export const addToCart = async (req, res) => {
       return res.status(400).json({ message: 'Insufficient stock' });
     }
 
-    let cart = await Cart.findOne({ user: req.user._id });
+    let cart = await Cart.findOne({ user: userId });
     if (!cart) {
-      cart = await Cart.create({ user: req.user._id, items: [] });
+      cart = await Cart.create({ user: userId, items: [] });
     }
 
     const existingItem = cart.items.find(item => item.product.toString() === productId);
@@ -125,9 +142,10 @@ export const addToCart = async (req, res) => {
  */
 export const updateCartItem = async (req, res) => {
   try {
+    const userId = getUserIdFromToken(req); // Get user ID from token
     const { productId, quantity } = req.body;
 
-    const cart = await Cart.findOne({ user: req.user._id });
+    const cart = await Cart.findOne({ user: userId });
     if (!cart) {
       return res.status(404).json({ message: 'Cart not found' });
     }
