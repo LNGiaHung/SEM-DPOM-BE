@@ -6,6 +6,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { ENV_VARS } from '../config/envVars.js'; // Import environment variables
+import { ProductVariant } from "../models/productVariant.model.js"; // Import the ProductVariant model
 
 // Get the directory name
 const __filename = fileURLToPath(import.meta.url);
@@ -370,5 +371,46 @@ export const recommendProducts = async (req, res) => {
     res.status(200).json({ recommendations, similarProducts });
   } catch (error) {
     res.status(500).json({ message: error.message });
+  }
+};
+
+/**
+ * @swagger
+ * /products/{id}/variants:
+ *   get:
+ *     summary: Get all variants of a product by product ID
+ *     tags: [Product]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: The ID of the product
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: List of product variants
+ *       404:
+ *         description: Product not found
+ *       500:
+ *         description: Internal server error
+ */
+export const getProductVariantsByProductId = async (req, res) => {
+  try {
+    const { id } = req.params; // Get productId from the request parameters
+
+    // Find the product to ensure it exists
+    const product = await Product.findById(id);
+    if (!product) {
+      return res.status(404).json({ message: 'Product not found' });
+    }
+
+    // Fetch all variants associated with the productId
+    const variants = await ProductVariant.find({ productId: id }); // Assuming productId is the field in ProductVariant
+
+    res.status(200).json({ success: true, variants });
+  } catch (error) {
+    console.log("Error in getProductVariantsByProductId controller", error.message);
+    res.status(500).json({ success: false, message: "Internal server error" });
   }
 };

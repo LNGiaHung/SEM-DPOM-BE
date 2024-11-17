@@ -7,7 +7,8 @@ import {
   getProductById,
   updateProduct,
   deleteProduct,
-  recommendProducts
+  recommendProducts,
+  getProductVariantsByProductId
 } from '../controllers/product.controller.js';
 
 const router = express.Router();
@@ -42,5 +43,8 @@ router.delete('/:id', deleteProduct);
 
 // Route to get recommended products
 router.post('/recommend', recommendProducts);
+
+// Route to get product variants by product ID
+router.get('/variants/:id', getProductVariantsByProductId);
 
 export default router; 
