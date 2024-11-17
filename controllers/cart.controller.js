@@ -40,11 +40,12 @@ export const getCart = async (req, res) => {
       cart = await Cart.create({ user: userId, items: [] });
     }
 
-    // Map cart items to include product details, size, and color
+    // Map cart items to include product details, size, color, and productVariantId
     const cartDetails = await Promise.all(cart.items.map(async (item) => {
       const productVariant = await ProductVariant.findById(item.productVariant).populate('productId'); // Populate productId to get product details
       const product = productVariant.productId; // Get the associated product
       return {
+        productVariantId: productVariant._id, // Include productVariantId
         productId: product._id,
         productName: product.title, // Assuming the product model has a 'title' field
         productPrice: product.price, // Use product price for calculation
@@ -54,7 +55,7 @@ export const getCart = async (req, res) => {
       };
     }));
 
-    res.json({ ...cart._doc, items: cartDetails }); // Return cart with detailed items including size and color
+    res.json({ ...cart._doc, items: cartDetails }); // Return cart with detailed items including size, color, and productVariantId
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
