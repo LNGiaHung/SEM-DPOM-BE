@@ -32,10 +32,10 @@ router.get('/inventory', getProductInventory);
 router.get('/search', getProducts);
 
 // Route to get a product by ID
-router.get('/:id', getProductById);
+router.get('/id/:id', getProductById);
 
 // Route to update a product
-router.put('/:id', updateProduct);
+router.put('/id/:id', updateProduct);
 
 // Route to delete a product
 router.delete('/:id', deleteProduct);

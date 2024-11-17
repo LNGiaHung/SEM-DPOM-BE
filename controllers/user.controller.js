@@ -4,85 +4,6 @@ import { ENV_VARS } from "../config/envVars.js"; // Import environment variables
 import mongoose from "mongoose";
 import bcrypt from 'bcrypt'; // Import bcrypt
 
-// Update user information
-/**
- * @swagger
- * /users/update:
- *   put:
- *     summary: Update user information
- *     tags: [User]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               firstName:
- *                 type: string
- *                 example: John
- *               lastName:
- *                 type: string
- *                 example: Doe
- *               image:
- *                 type: string
- *                 example: http://example.com/image.jpg
- *     responses:
- *       200:
- *         description: User updated successfully
- *       400:
- *         description: At least one field must be provided for update
- *       401:
- *         description: Unauthorized - No Token Provided or Invalid Token
- *       404:
- *         description: User not found
- *       500:
- *         description: Internal server error
- */
-export async function updateUser(req, res) {
-  try {
-    const token = req.cookies[COOKIE_ACCESS_TOKEN]; // Ensure this matches the cookie name
-
-    if (!token) {
-      return res.status(401).json({ success: false, message: "Unauthorized - No Token Provided" });
-    }
-
-    const decoded = jwt.verify(token, ENV_VARS.JWT_SECRET);
-
-    if (!decoded || !decoded.userId) {
-      return res.status(401).json({ success: false, message: "Unauthorized - Invalid Token" });
-    }
-
-    const userId = decoded.userId; // Get user ID from the decoded token
-
-    const { firstName, lastName, image } = req.body;
-
-    if (!firstName && !lastName && !image) {
-      return res.status(400).json({ success: false, message: "At least one field must be provided for update" });
-    }
-
-    const updatedUser = await User.findByIdAndUpdate(
-      userId,
-      { firstName, lastName, image },
-      { new: true, runValidators: true }
-    );
-
-    if (!updatedUser) {
-      return res.status(404).json({ success: false, message: "User not found" });
-    }
-
-    const { password, ...userWithoutPassword } = updatedUser._doc;
-
-    res.status(200).json({
-      success: true,
-      user: userWithoutPassword,
-    });
-  } catch (error) {
-    console.error("Error in updateUser controller:", error);
-    res.status(500).json({ success: false, message: "Internal server error", error: error.message });
-  }
-}
-
 // Get all staff users
 /**
  * @swagger
@@ -264,6 +185,88 @@ export const getCurrentUser = async (req, res) => {
     });
   } catch (error) {
     console.error("Error in getCurrentUser controller:", error);
+    res.status(500).json({ success: false, message: "Internal server error", error: error.message });
+  }
+};
+
+// Update current logged-in user information
+/**
+ * @swagger
+ * /users/me:
+ *   put:
+ *     summary: Update current logged-in user information
+ *     tags: [User]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               username:
+ *                 type: string
+ *                 example: johndoe
+ *               role:
+ *                 type: string
+ *                 example: staff
+ *               firstName:
+ *                 type: string
+ *                 example: John
+ *               lastName:
+ *                 type: string
+ *                 example: Doe
+ *               email:
+ *                 type: string
+ *                 example: johndoe@example.com
+ *               gender:
+ *                 type: string
+ *                 example: Male
+ *               address:
+ *                 type: string
+ *                 example: 123 Main St
+ *               phoneNumber:
+ *                 type: string
+ *                 example: 123-456-7890
+ *     responses:
+ *       200:
+ *         description: User updated successfully
+ *       400:
+ *         description: Invalid input
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Internal server error
+ */
+export const updateUser = async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : null;
+
+    if (!token) {
+      return res.status(401).json({ success: false, message: "Unauthorized - No Token Provided" });
+    }
+
+    const decoded = jwt.verify(token, ENV_VARS.JWT_SECRET);
+    const userId = decoded.userId; // Get user ID from the decoded token
+
+    // Get the fields to update from the request body
+    const updates = req.body;
+
+    // Update the user in the database
+    const updatedUser = await User.findByIdAndUpdate(userId, updates, { new: true, runValidators: true });
+
+    if (!updatedUser) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    const { password, ...userWithoutPassword } = updatedUser._doc; // Exclude password from response
+
+    res.status(200).json({
+      success: true,
+      user: userWithoutPassword,
+    });
+  } catch (error) {
+    console.error("Error in updateCurrentUser controller:", error);
     res.status(500).json({ success: false, message: "Internal server error", error: error.message });
   }
 };

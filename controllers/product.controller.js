@@ -310,18 +310,6 @@ const getUserIdFromToken = (req) => {
   return decoded.userId; // Assuming the userId is stored in the token
 };
 
-// Load product names from product.json
-const loadProducts = () => {
-  const filePath = join(__dirname, '../product.json'); // Adjust the path as necessary
-  const data = fs.readFileSync(filePath);
-  return JSON.parse(data);
-};
-
-// Function to find the most similar product
-const findMostSimilarProduct = (productName, products) => {
-  return products.find(product => product.toLowerCase().includes(productName.toLowerCase())) || null;
-};
-
 /**
  * @swagger
  * /products/recommend:
