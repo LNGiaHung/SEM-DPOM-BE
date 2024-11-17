@@ -7,7 +7,12 @@ const productVariantSchema = new mongoose.Schema(
       ref: 'Product',
       required: true,
     },
-    variantName: {
+    size: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    color: {
       type: String,
       required: true,
       trim: true,
