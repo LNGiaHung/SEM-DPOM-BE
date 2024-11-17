@@ -19,6 +19,13 @@ const orderSchema = mongoose.Schema(
       ref: 'User', // References the User model
       required: [true, 'User ID is required'], // Custom error message
     },
+    status: {
+      type: String,
+      required: true,
+    },
+    shippingAddress: {
+      type: String,
+    }
   },
   {
     timestamps: true, // Automatically manages createdAt and updatedAt fields
