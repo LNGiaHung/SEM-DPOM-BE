@@ -2,6 +2,7 @@ import { User } from "../models/user.model.js";
 import jwt from "jsonwebtoken"; // Import jwt for token verification
 import { ENV_VARS } from "../config/envVars.js"; // Import environment variables
 import mongoose from "mongoose";
+import bcrypt from 'bcrypt'; // Import bcrypt
 
 // Update user information
 /**
@@ -175,16 +176,19 @@ export const createUser = async (req, res) => {
     }
 
     // Check if the provided _id is valid (if provided)
-    if (_id && !mongoose.Types.ObjectId.isValid(_id)) {
+    if (_id && typeof _id !== 'string') {
       return res.status(400).json({ success: false, message: 'Invalid user ID format' });
     }
+
+    // Hash the password before saving
+    const hashedPassword = await bcrypt.hash(password, 10); // 10 is the salt rounds
 
     // Create a new user with the provided _id or let MongoDB generate one
     const newUser = new User({ 
       _id: _id || undefined, // Use provided _id or let MongoDB generate one
       username, 
       role, 
-      password, 
+      password: hashedPassword, // Store the hashed password
       firstName, 
       lastName, 
       email, 
@@ -197,5 +201,138 @@ export const createUser = async (req, res) => {
     res.status(201).json({ success: true, user: newUser });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Get user by ID
+/**
+ * @swagger
+ * /users/{id}:
+ *   get:
+ *     summary: Get user information by ID
+ *     tags: [User]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: The ID of the user to retrieve
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: User retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     userID:
+ *                       type: string
+ *                     name:
+ *                       type: string
+ *                     email:
+ *                       type: string
+ *                     phoneNumber:
+ *                       type: string
+ *                     gender:
+ *                       type: string
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Internal server error
+ */
+export const getUserById = async (req, res) => {
+  try {
+    const userId = req.params.id; // Get user ID from the request parameters
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    const { password, ...userWithoutPassword } = user._doc; // Exclude password from response
+
+    res.status(200).json({
+      success: true,
+      user: userWithoutPassword,
+    });
+  } catch (error) {
+    console.error("Error in getUserById controller:", error);
+    res.status(500).json({ success: false, message: "Internal server error", error: error.message });
+  }
+};
+
+// Get current logged-in user information
+/**
+ * @swagger
+ * /users/me:
+ *   get:
+ *     summary: Get current logged-in user information
+ *     tags: [User]
+ *     responses:
+ *       200:
+ *         description: Current user retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     userID:
+ *                       type: string
+ *                     name:
+ *                       type: string
+ *                     email:
+ *                       type: string
+ *                     phoneNumber:
+ *                       type: string
+ *                     gender:
+ *                       type: string
+ *       401:
+ *         description: Unauthorized - No Token Provided or Invalid Token
+ *       500:
+ *         description: Internal server error
+ */
+export const getCurrentUser = async (req, res) => {
+  try {
+    const token = req.cookies[COOKIE_ACCESS_TOKEN]; // Ensure this matches the cookie name
+
+    if (!token) {
+      return res.status(401).json({ success: false, message: "Unauthorized - No Token Provided" });
+    }
+
+    const decoded = jwt.verify(token, ENV_VARS.JWT_SECRET);
+
+    if (!decoded || !decoded.userId) {
+      return res.status(401).json({ success: false, message: "Unauthorized - Invalid Token" });
+    }
+
+    const userId = decoded.userId; // Get user ID from the decoded token
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    const { password, ...userWithoutPassword } = user._doc; // Exclude password from response
+
+    res.status(200).json({
+      success: true,
+      user: userWithoutPassword,
+    });
+  } catch (error) {
+    console.error("Error in getCurrentUser controller:", error);
+    res.status(500).json({ success: false, message: "Internal server error", error: error.message });
   }
 };

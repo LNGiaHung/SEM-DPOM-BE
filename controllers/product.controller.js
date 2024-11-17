@@ -1,5 +1,15 @@
 import {Product} from "../models/product.model.js";
 import {Category} from "../models/category.model.js";
+import { getRecommendedProducts } from '../services/recommendation.service.js';
+import jwt from 'jsonwebtoken';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+import { ENV_VARS } from '../config/envVars.js'; // Import environment variables
+
+// Get the directory name
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 /**
  * @swagger
@@ -282,6 +292,95 @@ export const deleteProduct = async (req, res) => {
       return res.status(404).json({ message: 'Product not found' });
     }
     res.json({ message: 'Product deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Helper function to get user ID from token
+const getUserIdFromToken = (req) => {
+  const authHeader = req.headers.authorization;
+  const token = authHeader && authHeader.startsWith("Bearer ") ? authHeader.split(" ")[1] : null;
+
+  if (!token) {
+    throw new Error("Unauthorized - No Token Provided");
+  }
+
+  const decoded = jwt.verify(token, ENV_VARS.JWT_SECRET);
+  return decoded.userId; // Assuming the userId is stored in the token
+};
+
+// Load product names from product.json
+const loadProducts = () => {
+  const filePath = join(__dirname, '../product.json'); // Adjust the path as necessary
+  const data = fs.readFileSync(filePath);
+  return JSON.parse(data);
+};
+
+// Function to find the most similar product
+const findMostSimilarProduct = (productName, products) => {
+  return products.find(product => product.toLowerCase().includes(productName.toLowerCase())) || null;
+};
+
+/**
+ * @swagger
+ * /products/recommend:
+ *   post:
+ *     summary: Get recommended products based on a product name
+ *     tags: [Products]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               productName:
+ *                 type: string
+ *                 example: "Sample Product"
+ *     responses:
+ *       200:
+ *         description: List of recommended products
+ *       400:
+ *         description: Invalid input
+ *       500:
+ *         description: Internal server error
+ */
+export const recommendProducts = async (req, res) => {
+  try {
+    const userId = getUserIdFromToken(req); // Get user ID from token
+    const { productName } = req.body;
+
+    if (!productName) {
+      return res.status(400).json({ message: 'Product name is required.' });
+    }
+
+    // Find the most similar product (this could be a database query as well)
+    const similarProduct = await Product.findOne({ title: { $regex: productName, $options: 'i' } });
+
+    if (!similarProduct) {
+      return res.status(404).json({ message: 'No similar product found.' });
+    }
+
+    // Get recommendations based on the similar product
+    const recommendations = await getRecommendedProducts(similarProduct.title, userId);
+
+    // Extract product names from recommendations, ensuring they are defined
+    const recommendedProductNames = recommendations
+      .map(rec => rec.Item)
+      .filter(item => item); // Filter out any undefined or null items
+
+    // Load all products from the database
+    const products = await Product.find();
+
+    // Find similar products based on the recommended product names
+    const similarProducts = products.filter(product => 
+      recommendedProductNames.some(recName => 
+        product.title && product.title.toLowerCase().includes(recName.toLowerCase())
+      )
+    );
+
+    res.status(200).json({ recommendations, similarProducts });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

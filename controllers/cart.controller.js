@@ -44,7 +44,7 @@ export const getCartWithDetails = async (req, res) => {
       const product = await Product.findById(item.product);
       return {
         productId: product._id,
-        productName: product.name, // Assuming the product model has a 'name' field
+        productName: product.title, // Assuming the product model has a 'name' field
         productPrice: product.price, // Assuming the product model has a 'price' field
         quantity: item.quantity,
       };

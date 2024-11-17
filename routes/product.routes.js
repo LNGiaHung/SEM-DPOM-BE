@@ -6,7 +6,8 @@ import {
   getProducts,
   getProductById,
   updateProduct,
-  deleteProduct
+  deleteProduct,
+  recommendProducts
 } from '../controllers/product.controller.js';
 
 const router = express.Router();
@@ -38,5 +39,8 @@ router.put('/:id', updateProduct);
 
 // Route to delete a product
 router.delete('/:id', deleteProduct);
+
+// Route to get recommended products
+router.post('/recommend', recommendProducts);
 
 export default router; 
