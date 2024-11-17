@@ -1,6 +1,8 @@
 import { Order } from "../models/order.model.js";
 import { Cart } from "../models/cart.model.js"; // Import Cart model
 import { Product } from "../models/product.model.js"; // Import Product model
+import { ProductVariant } from "../models/productVariant.model.js"; // Import ProductVariant model
+import { OrderProduct } from "../models/orderProduct.model.js"; // Import OrderProduct model
 import jwt from "jsonwebtoken"; // Import jwt for token verification
 import { ENV_VARS } from "../config/envVars.js"; // Import environment variables
 
@@ -15,28 +17,6 @@ const getUserIdFromToken = (req) => {
 
   const decoded = jwt.verify(token, ENV_VARS.JWT_SECRET);
   return decoded.userId; // Assuming the userId is stored in the token
-};
-
-/**
- * @swagger
- * /orders:
- *   get:
- *     summary: Get all orders for the authenticated user
- *     tags: [Order]
- *     responses:
- *       200:
- *         description: List of orders
- *       500:
- *         description: Internal server error
- */
-export const getOrders = async (req, res) => {
-  try {
-    const userId = getUserIdFromToken(req); // Get user ID from token
-    const orders = await Order.find({ user: userId }).populate('items.product');
-    res.status(200).json({ success: true, orders });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
 };
 
 /**
@@ -65,32 +45,64 @@ export const createOrder = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Cart not found' });
     }
 
-    // Use the total amount from the cart
-    const totalAmount = cart.totalAmount;
+    // Check if the cart is empty
+    if (cart.items.length === 0) {
+      return res.status(400).json({ success: false, message: 'Cart is empty. Cannot create an order.' });
+    }
 
-    // Validate stock and update product stock
+    // Validate stock and prepare order items
+    const orderItems = [];
     for (const item of cart.items) {
-      const product = await Product.findById(item.productVariant); // Assuming productVariant references Product
+      const productVariant = await ProductVariant.findById(item.productVariant); // Fetch the product variant
+      if (!productVariant) {
+        return res.status(404).json({ success: false, message: `Product variant not found` });
+      }
+
+      // Check if the requested quantity is available
+      if (productVariant.quantity < item.quantity) {
+        return res.status(400).json({ success: false, message: `Insufficient stock for variant of product ID ${productVariant.productId}` });
+      }
+
+      // Fetch the associated product to get the price
+      const product = await Product.findById(productVariant.productId); // Fetch the product using productId from the variant
       if (!product) {
         return res.status(404).json({ success: false, message: `Product not found` });
       }
-      if (product.stock < item.quantity) {
-        return res.status(400).json({ success: false, message: `Insufficient stock for ${product.title}` });
-      }
 
-      // Update product stock
-      await Product.findByIdAndUpdate(item.productVariant, {
-        $inc: { stock: -item.quantity }
+      // Prepare order item details
+      orderItems.push({
+        productId: productVariant.productId, // Reference to the product
+        quantity: item.quantity,
+        price: product.price // Get the price from the Product model
       });
     }
 
     // Create the order
     const order = await Order.create({
       userId: userId, // Use the user ID from the token
-      items: cart.items, // You may want to store items in a separate OrderProduct model
-      total: totalAmount, // Use the total amount from the cart
+      total: cart.totalAmount, // Use the total amount from the cart
+      status: 'Pending', // Set status as Pending
       shippingAddress: req.body.shippingAddress // Assuming you pass shipping address in the request body
     });
+
+    // Create order products
+    const orderProductPromises = orderItems.map(item => {
+      return OrderProduct.create({
+        orderId: order._id,
+        productId: item.productId,
+        quantity: item.quantity,
+        price: item.price // Store the price from the Product model
+      });
+    });
+
+    await Promise.all(orderProductPromises); // Wait for all order products to be created
+
+    // Update product variant stock after the order is created
+    for (const item of cart.items) {
+      await ProductVariant.findByIdAndUpdate(item.productVariant, {
+        $inc: { quantity: -item.quantity } // Decrease the quantity in the ProductVariant
+      });
+    }
 
     // Optionally, clear the cart after creating the order
     cart.items = [];
@@ -98,6 +110,37 @@ export const createOrder = async (req, res) => {
     await cart.save();
 
     res.status(201).json({ success: true, order });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * @swagger
+ * /orders:
+ *   get:
+ *     summary: Get all orders in the database
+ *     tags: [Order]
+ *     responses:
+ *       200:
+ *         description: List of all orders
+ *       500:
+ *         description: Internal server error
+ */
+export const getAllOrders = async (req, res) => {
+  try {
+    // Fetch all orders, selecting only the required fields
+    const orders = await Order.find({}, 'orderDate total status'); // Select only orderDate, total, and status
+
+    // Map the orders to include only the required fields
+    const formattedOrders = orders.map(order => ({
+      orderId: order._id,
+      orderDate: order.orderDate,
+      total: order.total,
+      status: order.status,
+    }));
+
+    res.status(200).json({ success: true, orders: formattedOrders });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -126,7 +169,7 @@ export const createOrder = async (req, res) => {
  */
 export const getOrderById = async (req, res) => {
   try {
-    const order = await Order.findById(req.params.id).populate('items.product');
+    const order = await Order.findById(req.params.id).populate('items.productId');
     if (!order) {
       return res.status(404).json({ success: false, message: 'Order not found' });
     }

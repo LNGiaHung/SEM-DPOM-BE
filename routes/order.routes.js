@@ -1,6 +1,6 @@
 import express from 'express';
 import {
-  getOrders,
+  getAllOrders,
   createOrder,
   getOrderById,
   updateOrderStatus,
@@ -17,7 +17,7 @@ const router = express.Router();
  */
 
 // Route to get all orders for the authenticated user
-router.get('/', getOrders);
+router.get('/', getAllOrders);
 
 // Route to create a new order
 router.post('/', createOrder);
