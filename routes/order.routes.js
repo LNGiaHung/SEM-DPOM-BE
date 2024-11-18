@@ -23,7 +23,7 @@ router.get('/', getAllOrders);
 router.post('/', createOrder);
 
 // Route to get an order by ID
-router.get('/id', getOrderById);
+router.get('/id/:id', getOrderById);
 
 // Route to update the status of an order
 router.put('/status', updateOrderStatus);

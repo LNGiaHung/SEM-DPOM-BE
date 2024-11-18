@@ -149,20 +149,17 @@ export const getAllOrders = async (req, res) => {
 
 /**
  * @swagger
- * /orders/id:
+ * /orders/id/{id}:
  *   get:
  *     summary: Get an order by order ID
  *     tags: [Order]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               orderId:
- *                 type: string
- *                 example: 60d5ec49f1b2c8b1f8c8e8e8
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: The ID of the order
+ *         schema:
+ *           type: string
  *     responses:
  *       200:
  *         description: Order details
@@ -173,10 +170,10 @@ export const getAllOrders = async (req, res) => {
  */
 export const getOrderById = async (req, res) => {
   try {
-    const { orderId } = req.body; // Get orderId from the request body
+    const { id } = req.params; // Get order ID from the URL parameters
 
     // Find the order by ID
-    const order = await Order.findById(orderId);
+    const order = await Order.findById(id);
     if (!order) {
       return res.status(404).json({ success: false, message: 'Order not found' });
     }
