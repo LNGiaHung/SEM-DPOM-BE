@@ -129,15 +129,16 @@ export const createOrder = async (req, res) => {
  */
 export const getAllOrders = async (req, res) => {
   try {
-    // Fetch all orders, selecting only the required fields
-    const orders = await Order.find({}, 'orderDate total status'); // Select only orderDate, total, and status
+    // Fetch all orders, selecting only the required fields including status
+    const orders = await Order.find({}, 'orderDate total status shippingAddress'); // Select orderDate, total, status, and shippingAddress
 
     // Map the orders to include only the required fields
     const formattedOrders = orders.map(order => ({
       orderId: order._id,
       orderDate: order.orderDate,
       total: order.total,
-      status: order.status,
+      status: order.status, // Include status in the response
+      shippingAddress: order.shippingAddress // Include shipping address if needed
     }));
 
     res.status(200).json({ success: true, orders: formattedOrders });
@@ -148,17 +149,20 @@ export const getAllOrders = async (req, res) => {
 
 /**
  * @swagger
- * /orders/{id}:
+ * /orders/id:
  *   get:
- *     summary: Get an order by ID
+ *     summary: Get an order by order ID
  *     tags: [Order]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         description: The ID of the order
- *         schema:
- *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               orderId:
+ *                 type: string
+ *                 example: 60d5ec49f1b2c8b1f8c8e8e8
  *     responses:
  *       200:
  *         description: Order details
@@ -169,11 +173,37 @@ export const getAllOrders = async (req, res) => {
  */
 export const getOrderById = async (req, res) => {
   try {
-    const order = await Order.findById(req.params.id).populate('items.productId');
+    const { orderId } = req.body; // Get orderId from the request body
+
+    // Find the order by ID
+    const order = await Order.findById(orderId);
     if (!order) {
       return res.status(404).json({ success: false, message: 'Order not found' });
     }
-    res.status(200).json({ success: true, order });
+
+    // Query all OrderProducts associated with the orderId
+    const orderProducts = await OrderProduct.find({ orderId: order._id })
+      .populate({
+        path: 'productId', // Populate the productId in OrderProduct to get product details
+        select: 'title price', // Select only the fields you need from the Product model
+      });
+
+    // Format the order details to include necessary information
+    const orderDetails = {
+      orderId: order._id,
+      orderDate: order.orderDate,
+      total: order.total,
+      status: order.status,
+      shippingAddress: order.shippingAddress,
+      items: orderProducts.map(item => ({
+        productId: item.productId._id, // Include product ID
+        productName: item.productId.title, // Get the product title
+        quantity: item.quantity,
+        price: item.price,
+      })),
+    };
+
+    res.status(200).json({ success: true, order: orderDetails });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
