@@ -32,10 +32,23 @@ const productSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    totalStock: {
+      type: Number,
+      default: 0,
+      min: 0
+    }
   },
   {
     timestamps: true,
   }
 );
+
+// Middleware để tự động cập nhật totalStock
+productSchema.methods.updateTotalStock = async function() {
+  const ProductVariant = mongoose.model('ProductVariant');
+  const variants = await ProductVariant.find({ productId: this._id });
+  this.totalStock = variants.reduce((sum, variant) => sum + variant.stock, 0);
+  await this.save();
+};
 
 export const Product = mongoose.model('Product', productSchema);

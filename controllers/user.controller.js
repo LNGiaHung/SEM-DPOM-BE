@@ -11,11 +11,37 @@ import bcrypt from 'bcrypt'; // Import bcrypt
  *   get:
  *     summary: Get all staff users
  *     tags: [User]
+ *     security:
+ *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: List of staff users
+ *         description: List of staff users retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 users:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       userID:
+ *                         type: string
+ *                       name:
+ *                         type: string
+ *                       email:
+ *                         type: string
+ *                       phoneNumber:
+ *                         type: string
+ *                       gender:
+ *                         type: string
+ *       401:
+ *         description: Unauthorized
  *       500:
- *         description: Internal server error
+ *         description: Server error
  */
 export const getStaffUsers = async (req, res) => {
   try {
@@ -192,10 +218,12 @@ export const getCurrentUser = async (req, res) => {
 // Update current logged-in user information
 /**
  * @swagger
- * /users/me:
+ * /users/update:
  *   put:
- *     summary: Update current logged-in user information
+ *     summary: Update user information
  *     tags: [User]
+ *     security:
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -205,37 +233,36 @@ export const getCurrentUser = async (req, res) => {
  *             properties:
  *               username:
  *                 type: string
- *                 example: johndoe
- *               role:
- *                 type: string
- *                 example: staff
  *               firstName:
  *                 type: string
- *                 example: John
  *               lastName:
  *                 type: string
- *                 example: Doe
  *               email:
  *                 type: string
- *                 example: johndoe@example.com
  *               gender:
  *                 type: string
- *                 example: Male
  *               address:
  *                 type: string
- *                 example: 123 Main St
  *               phoneNumber:
  *                 type: string
- *                 example: 123-456-7890
  *     responses:
  *       200:
  *         description: User updated successfully
- *       400:
- *         description: Invalid input
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 user:
+ *                   type: object
+ *       401:
+ *         description: Unauthorized - No Token Provided
  *       404:
  *         description: User not found
  *       500:
- *         description: Internal server error
+ *         description: Server error
  */
 export const updateUser = async (req, res) => {
   try {
@@ -268,5 +295,107 @@ export const updateUser = async (req, res) => {
   } catch (error) {
     console.error("Error in updateCurrentUser controller:", error);
     res.status(500).json({ success: false, message: "Internal server error", error: error.message });
+  }
+};
+
+/**
+ * @swagger
+ * /users/{id}:
+ *   get:
+ *     summary: Get user by ID
+ *     tags: [User]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: User ID
+ *     responses:
+ *       200:
+ *         description: User found successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 _id:
+ *                   type: string
+ *                 username:
+ *                   type: string
+ *                 email:
+ *                   type: string
+ *                 firstName:
+ *                   type: string
+ *                 lastName:
+ *                   type: string
+ *                 role:
+ *                   type: string
+ *                 gender:
+ *                   type: string
+ *                 phoneNumber:
+ *                   type: string
+ *       401:
+ *         description: Unauthorized - Invalid or missing token
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Internal server error
+ */
+export const getUserById = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    res.status(200).json(user);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/**
+ * @swagger
+ * /users/{id}:
+ *   delete:
+ *     summary: Delete user by ID
+ *     tags: [User]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: User ID
+ *     responses:
+ *       200:
+ *         description: User deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *       401:
+ *         description: Unauthorized - Invalid or missing token
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Internal server error
+ */
+export const deleteUser = async (req, res) => {
+  try {
+    const user = await User.findByIdAndDelete(req.params.id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    res.status(200).json({ message: "User deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 };

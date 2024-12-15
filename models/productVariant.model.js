@@ -10,22 +10,39 @@ const productVariantSchema = new mongoose.Schema(
     size: {
       type: String,
       required: true,
-      trim: true,
     },
     color: {
       type: String,
       required: true,
-      trim: true,
     },
-    quantity: {
+    stock: {
       type: Number,
       required: true,
-      min: 0,
+      default: 0,
+      min: 0
     },
   },
   {
     timestamps: true,
   }
 );
+
+// Middleware để cập nhật totalStock của product sau khi lưu variant
+productVariantSchema.post('save', async function() {
+  const Product = mongoose.model('Product');
+  const product = await Product.findById(this.productId);
+  if (product) {
+    await product.updateTotalStock();
+  }
+});
+
+// Middleware để cập nhật totalStock của product sau khi xóa variant
+productVariantSchema.post('remove', async function() {
+  const Product = mongoose.model('Product');
+  const product = await Product.findById(this.productId);
+  if (product) {
+    await product.updateTotalStock();
+  }
+});
 
 export const ProductVariant = mongoose.model('ProductVariant', productVariantSchema);

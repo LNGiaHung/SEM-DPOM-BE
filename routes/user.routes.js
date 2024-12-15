@@ -3,7 +3,9 @@ import {
   updateUser,
   getStaffUsers,
   createUser,
-  getCurrentUser
+  getCurrentUser,
+  getUserById,
+  deleteUser
 } from "../controllers/user.controller.js";
 import { protectRoute } from "../middleware/protectRoute.js";
 
@@ -27,5 +29,11 @@ router.post("/", createUser);
 
 // Route to get current logged-in user information
 router.get("/me", protectRoute, getCurrentUser);
+
+// Route to get user by ID
+router.get("/:id", protectRoute, getUserById);
+
+// Route to delete user
+router.delete("/:id", protectRoute, deleteUser);
 
 export default router; 

@@ -6,7 +6,7 @@ import { ENV_VARS } from "../config/envVars.js";
 
 /**
  * @swagger
- * /signup:
+ * /auth/signup:
  *   post:
  *     summary: Sign up a new user
  *     tags: [Auth]
@@ -16,12 +16,22 @@ import { ENV_VARS } from "../config/envVars.js";
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *               - username
+ *               - firstName
+ *               - lastName
+ *               - gender
+ *               - phoneNumber
  *             properties:
  *               email:
  *                 type: string
+ *                 format: email
  *                 example: user@example.com
  *               password:
  *                 type: string
+ *                 minLength: 6
  *                 example: password123
  *               username:
  *                 type: string
@@ -34,6 +44,7 @@ import { ENV_VARS } from "../config/envVars.js";
  *                 example: Doe
  *               gender:
  *                 type: string
+ *                 enum: [male, female, other]
  *                 example: Male
  *               phoneNumber:
  *                 type: string
@@ -41,6 +52,26 @@ import { ENV_VARS } from "../config/envVars.js";
  *     responses:
  *       201:
  *         description: User signed up successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                     username:
+ *                       type: string
+ *                     email:
+ *                       type: string
+ *                     role:
+ *                       type: string
+ *                 accessToken:
+ *                   type: string
  *       400:
  *         description: All fields are required or invalid input
  *       500:
@@ -115,7 +146,7 @@ export async function signup(req, res) {
 
 /**
  * @swagger
- * /login:
+ * /auth/login:
  *   post:
  *     summary: Login a user
  *     tags: [Auth]
@@ -125,9 +156,13 @@ export async function signup(req, res) {
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - email
+ *               - password
  *             properties:
  *               email:
  *                 type: string
+ *                 format: email
  *                 example: user@example.com
  *               password:
  *                 type: string
@@ -135,8 +170,30 @@ export async function signup(req, res) {
  *     responses:
  *       200:
  *         description: User logged in successfully
- *       401:
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                     username:
+ *                       type: string
+ *                     email:
+ *                       type: string
+ *                     role:
+ *                       type: string
+ *                 accessToken:
+ *                   type: string
+ *       400:
  *         description: Invalid credentials
+ *       404:
+ *         description: User not found
  *       500:
  *         description: Internal server error
  */
@@ -182,13 +239,24 @@ export async function login(req, res) {
 
 /**
  * @swagger
- * /logout:
+ * /auth/logout:
  *   post:
  *     summary: Logout a user
  *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: Logged out successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
  *       401:
  *         description: Unauthorized - Invalid token
  *       500:
@@ -230,13 +298,35 @@ export async function logout(req, res) {
 
 /**
  * @swagger
- * /auth-check:
+ * /auth/authCheck:
  *   get:
  *     summary: Check authentication status
  *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: User is authenticated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                     username:
+ *                       type: string
+ *                     email:
+ *                       type: string
+ *                     role:
+ *                       type: string
+ *       401:
+ *         description: Unauthorized
  *       500:
  *         description: Internal server error
  */
@@ -252,7 +342,7 @@ export async function authCheck(req, res) {
 
 /**
  * @swagger
- * /refresh-token:
+ * /auth/refresh:
  *   post:
  *     summary: Refresh access token
  *     tags: [Auth]
