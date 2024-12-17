@@ -393,3 +393,53 @@ export async function refreshToken(req, res) {
 		res.status(500).json({ success: false, message: "Internal server error" });
 	}
 }
+
+/**
+ * @swagger
+ * /auth/me:
+ *   get:
+ *     summary: Get current logged-in user information
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: User information retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                     username:
+ *                       type: string
+ *                     email:
+ *                       type: string
+ *                     firstName:
+ *                       type: string
+ *                     lastName:
+ *                       type: string
+ *                     gender:
+ *                       type: string
+ *                     phoneNumber:
+ *                       type: string
+ *       401:
+ *         description: Unauthorized - No token provided or invalid token
+ *       500:
+ *         description: Internal server error
+ */
+export const getCurrentUser = async (req, res) => {
+	try {
+		const user = req.user; // Assuming user is set in the request by middleware
+		res.status(200).json({ success: true, user });
+	} catch (error) {
+		console.log("Error in getCurrentUser controller", error.message);
+		res.status(500).json({ success: false, message: "Internal server error" });
+	}
+};

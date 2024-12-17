@@ -10,7 +10,8 @@ import {
   recommendProducts,
   getProductVariantsByProductId,
   calculateTotalStock,
-  restockVariant
+  restockVariant,
+  initializeProducts
 } from '../controllers/product.controller.js';
 import { protectRoute } from '../middleware/protectRoute.js';
 
@@ -37,5 +38,6 @@ router.delete('/:id', protectRoute, deleteProduct);
 router.get('/variants/:id', protectRoute, getProductVariantsByProductId);
 router.post('/calculate-stock', protectRoute, calculateTotalStock);
 router.post('/variants/restock', protectRoute, restockVariant);
+router.post('/init', protectRoute, initializeProducts);
 
 export default router; 

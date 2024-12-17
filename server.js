@@ -3,6 +3,8 @@ import cookieParser from "cookie-parser";
 import path from "path";
 import cors from "cors";
 
+import cloudinary, { validateCloudinaryConnection } from './config/cloudinary.js';
+
 import authRoutes from "./routes/auth.routes.js";
 import userRoutes from "./routes/user.routes.js";
 import productRoutes from "./routes/product.routes.js";
@@ -58,4 +60,5 @@ app.listen(PORT, () => {
   console.log("Server started at http://localhost:" + PORT);
   console.log("Swagger API documentation available at: http://localhost:" + PORT + "/api-docs");
   connectDB();
+  validateCloudinaryConnection();
 });

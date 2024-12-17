@@ -1,11 +1,10 @@
 import { Product } from "../models/product.model.js";
 import { getRecommendedProducts } from '../services/recommendation.service.js';
-import jwt from 'jsonwebtoken';
-import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { ENV_VARS } from '../config/envVars.js';
 import { ProductVariant } from "../models/productVariant.model.js";
+import { Category } from "../models/category.model.js";
+import cloudinary, { validateCloudinaryConnection } from '../config/cloudinary.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -632,4 +631,207 @@ export const restockVariant = async (req, res) => {
       error: error.message
     });
   }
+};
+
+/**
+ * @swagger
+ * /products/init:
+ *   post:
+ *     summary: Initialize categories and products with variants (Protected)
+ *     tags: [Product]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Products and categories initialized successfully
+ *       500:
+ *         description: Internal server error
+ */
+
+// Fetch product images dynamically from Cloudinary
+const fetchProductImages = async () => {
+  const productImages = {};
+  const productFolders = {
+    'Backpack': 'Clothing/Accessories/Backpack',
+    'Belt': 'Clothing/Accessories/Belt',
+    'Handbag': 'Clothing/Accessories/Handbag',
+    'Hat': 'Clothing/Accessories/Hat',
+    'Scarf': 'Clothing/Accessories/Scarf',
+    'Sunglasses': 'Clothing/Accessories/Sunglasses',
+    'Blouse': 'Clothing/Clothing/Blouse',
+    'Dress': 'Clothing/Clothing/Dress',
+    'Hoodie': 'Clothing/Clothing/Hoodie',
+    'Jeans': 'Clothing/Clothing/Jeans',
+    'Pants': 'Clothing/Clothing/Pants',
+    'Shirt': 'Clothing/Clothing/Shirt',
+    'Shorts': 'Clothing/Clothing/Shorts',
+    'Skirt': 'Clothing/Clothing/Skirts',
+    'Socks': 'Clothing/Clothing/Socks',
+    'Sweater': 'Clothing/Clothing/Sweater',
+    'T-shirt': 'Clothing/Clothing/T-shirt',
+    'Boots': 'Clothing/Footwear/Boot',
+    'Sandals': 'Clothing/Footwear/Sandals',
+    'Shoes': 'Clothing/Footwear/Shoes',
+    'Sneakers': 'Clothing/Footwear/Sneaker',
+    'Coat': 'Clothing/Outerwear/Coat',
+    'Gloves': 'Clothing/Outerwear/Gloves',
+    'Jacket': 'Clothing/Outerwear/Jacket',
+  };
+
+  const defaultImage = 'https://res.cloudinary.com/your-cloud-name/image/upload/v1/default/no-image.jpg';
+
+  try {
+    // First validate Cloudinary connection
+    const isConnected = await validateCloudinaryConnection();
+    if (!isConnected) {
+      console.error('Failed to connect to Cloudinary. Using default images.');
+      return Object.fromEntries(
+        Object.keys(productFolders).map(key => [key, defaultImage])
+      );
+    }
+
+    // Fetch images for each product
+    for (const [productName, folderPath] of Object.entries(productFolders)) {
+      try {
+        // Search for images in the specific folder
+        const result = await cloudinary.v2.search
+          .expression(`folder:${folderPath}/*`)
+          .sort_by('created_at', 'desc')
+          .max_results(1)
+          .execute();
+
+        if (result && result.resources && result.resources.length > 0) {
+          productImages[productName] = result.resources[0].secure_url;
+          console.log(`Found image for ${productName}: ${result.resources[0].secure_url}`);
+        } else {
+          console.log(`No images found for ${productName} in folder ${folderPath}`);
+          productImages[productName] = defaultImage;
+        }
+      } catch (folderError) {
+        console.error(`Error fetching images for ${productName}:`, folderError.message);
+        productImages[productName] = defaultImage;
+      }
+    }
+  } catch (error) {
+    console.error('Error in fetchProductImages:', error);
+    // Return default images for all products if there's an error
+    return Object.fromEntries(
+      Object.keys(productFolders).map(key => [key, defaultImage])
+    );
+  }
+
+  return productImages;
+};
+
+export const initializeProducts = async (req, res) => {
+  try {
+    // Step 1: Delete all existing data
+    await ProductVariant.deleteMany({});
+    await Product.deleteMany({});
+    await Category.deleteMany({});
+
+    // Step 2: Initialize categories
+    const categories = ["Accessories", "Clothing", "Footwear", "Outerwear"];
+    const categoryDocs = await Promise.all(
+      categories.map(name => Category.create({ name }))
+    );
+
+    // Step 3: Map categories to IDs
+    const categoryMap = {};
+    categoryDocs.forEach(cat => {
+      categoryMap[cat.name] = cat._id;
+    });
+
+    // Step 4: Fetch images from Cloudinary
+    const productImages = await fetchProductImages();
+
+    // Step 5: Define product categories
+    const productCategories = {
+      'Backpack': 'Accessories',
+      'Belt': 'Accessories',
+      'Handbag': 'Accessories',
+      'Hat': 'Accessories',
+      'Scarf': 'Accessories',
+      'Sunglasses': 'Accessories',
+      'Blouse': 'Clothing',
+      'Dress': 'Clothing',
+      'Hoodie': 'Clothing',
+      'Jeans': 'Clothing',
+      'Pants': 'Clothing',
+      'Shirt': 'Clothing',
+      'Shorts': 'Clothing',
+      'Skirt': 'Clothing',
+      'Socks': 'Clothing',
+      'Sweater': 'Clothing',
+      'T-shirt': 'Clothing',
+      'Boots': 'Footwear',
+      'Sandals': 'Footwear',
+      'Shoes': 'Footwear',
+      'Sneakers': 'Footwear',
+      'Coat': 'Outerwear',
+      'Gloves': 'Outerwear',
+      'Jacket': 'Outerwear'
+    };
+
+    const sizes = ['S', 'M', 'L', 'XL'];
+    const colors = ['White', 'Black', 'Blue', 'Green', 'Red'];
+    let productsCreated = 0;
+    let variantsCreated = 0;
+
+    const uniqueProducts = Object.keys(productCategories);
+
+    // Step 6: Create products and variants
+    for (const productName of uniqueProducts) {
+      const category = productCategories[productName];
+      const categoryId = categoryMap[category];
+
+      if (!categoryId) {
+        console.log(`Category not found for product: ${ productName }`);
+        continue;
+      }
+
+      const product = new Product({
+        title: productName,
+        description: `A high- quality ${ productName.toLowerCase() }`,
+        price: Math.floor(Math.random() * (200 - 20) + 20) * 23000,
+        categoryId,
+        material: ['Cotton', 'Polyester', 'Leather', 'Wool', 'Denim'][Math.floor(Math.random() * 5)],
+        totalStock: 0,
+        image: productImages[productName] || 'https://example.com/images/default.png'
+      });
+
+    await product.save();
+    productsCreated++;
+
+    // Create product variants
+    for (const size of sizes) {
+      for (const color of colors) {
+        const variant = new ProductVariant({
+          productId: product._id,
+          size,
+          color,
+          quantity: Math.floor(Math.random() * 50) + 10
+        });
+
+        await variant.save();
+        variantsCreated++;
+      }
+    }
+  }
+
+    res.status(200).json({
+    success: true,
+    message: 'Categories, products, and variants initialized successfully',
+    categoriesCreated: categories.length,
+    productsCreated,
+    variantsCreated
+  });
+} catch (error) {
+  console.error('Error initializing products:', error);
+  res.status(500).json({
+    success: false,
+    message: 'Error initializing products',
+    error: error.message
+  });
+}
 };
