@@ -36,6 +36,6 @@ router.put('/id/:id', protectRoute, updateProduct);
 router.delete('/:id', protectRoute, deleteProduct);
 router.get('/variants/:id', protectRoute, getProductVariantsByProductId);
 router.post('/calculate-stock', protectRoute, calculateTotalStock);
-router.post('/variants/:variantId/restock', protectRoute, restockVariant);
+router.post('/variants/restock', protectRoute, restockVariant);
 
 export default router; 

@@ -1,4 +1,4 @@
-import {Product} from "../models/product.model.js";
+import { Product } from "../models/product.model.js";
 import { getRecommendedProducts } from '../services/recommendation.service.js';
 import jwt from 'jsonwebtoken';
 import fs from 'fs';
@@ -424,8 +424,8 @@ export const recommendProducts = async (req, res) => {
 
     const products = await Product.find();
 
-    const similarProducts = products.filter(product => 
-      recommendedProductNames.some(recName => 
+    const similarProducts = products.filter(product =>
+      recommendedProductNames.some(recName =>
         product.title && product.title.toLowerCase().includes(recName.toLowerCase())
       )
     );
@@ -535,19 +535,12 @@ export const calculateTotalStock = async (req, res) => {
 
 /**
  * @swagger
- * /products/variants/{variantId}/restock:
+ * /products/variants/restock:
  *   post:
  *     summary: Restock a product variant (Protected)
  *     tags: [Product]
  *     security:
  *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: variantId
- *         required: true
- *         schema:
- *           type: string
- *         description: The ID of the product variant
  *     requestBody:
  *       required: true
  *       content:
@@ -555,8 +548,20 @@ export const calculateTotalStock = async (req, res) => {
  *           schema:
  *             type: object
  *             required:
+ *               - productId
+ *               - size
+ *               - color
  *               - quantity
  *             properties:
+ *               productId:
+ *                 type: string
+ *                 description: The ID of the product
+ *               size:
+ *                 type: string
+ *                 description: The size of the product variant
+ *               color:
+ *                 type: string
+ *                 description: The color of the product variant
  *               quantity:
  *                 type: number
  *                 description: The quantity to add to current stock
@@ -576,38 +581,37 @@ export const calculateTotalStock = async (req, res) => {
  *                 variant:
  *                   type: object
  *       400:
- *         description: Invalid quantity
+ *         description: Invalid quantity - Quantity must be a positive number
  *       401:
  *         description: Unauthorized - No token provided or invalid token
  *       404:
- *         description: Variant not found
+ *         description: Variant not found - The specified variant ID does not exist
  *       500:
  *         description: Internal server error
  */
 export const restockVariant = async (req, res) => {
   try {
-    const { variantId } = req.params;
-    const { quantity } = req.body;
+    const { productId, size, color, quantity } = req.body;
 
-    if (!quantity || quantity <= 0) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Please provide a valid quantity greater than 0' 
+    if (!productId || !size || !color || !quantity || quantity <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide valid productId, size, color, and quantity greater than 0'
       });
     }
 
-    const variant = await ProductVariant.findById(variantId);
+    const variant = await ProductVariant.findOne({ productId, size, color });
     if (!variant) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Product variant not found' 
+      return res.status(404).json({
+        success: false,
+        message: 'Product variant not found'
       });
     }
 
     variant.quantity += quantity;
     await variant.save();
 
-    const product = await Product.findById(variant.productId);
+    const product = await Product.findById(productId);
     if (product) {
       const variants = await ProductVariant.find({ productId: product._id });
       const totalStock = variants.reduce((total, variant) => total + variant.quantity, 0);
@@ -622,10 +626,10 @@ export const restockVariant = async (req, res) => {
     });
   } catch (error) {
     console.error('Error in restockVariant controller:', error.message);
-    res.status(500).json({ 
-      success: false, 
+    res.status(500).json({
+      success: false,
       message: 'Internal server error',
-      error: error.message 
+      error: error.message
     });
   }
 };
