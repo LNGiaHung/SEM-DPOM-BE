@@ -4,10 +4,9 @@ import jwt from 'jsonwebtoken';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { ENV_VARS } from '../config/envVars.js'; // Import environment variables
-import { ProductVariant } from "../models/productVariant.model.js"; // Import the ProductVariant model
+import { ENV_VARS } from '../config/envVars.js';
+import { ProductVariant } from "../models/productVariant.model.js";
 
-// Get the directory name
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
@@ -15,11 +14,33 @@ const __dirname = dirname(__filename);
  * @swagger
  * /products:
  *   get:
- *     summary: Get all products
+ *     summary: Get all products (Public)
  *     tags: [Product]
  *     responses:
  *       200:
- *         description: List of products
+ *         description: List of products retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 products:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                       title:
+ *                         type: string
+ *                       description:
+ *                         type: string
+ *                       price:
+ *                         type: number
+ *                       categoryId:
+ *                         type: string
  *       500:
  *         description: Internal server error
  */
@@ -37,14 +58,21 @@ export async function getAllProducts(req, res) {
  * @swagger
  * /products:
  *   post:
- *     summary: Create a new product
+ *     summary: Create a new product (Protected)
  *     tags: [Product]
+ *     security:
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - title
+ *               - description
+ *               - price
+ *               - categoryId
  *             properties:
  *               title:
  *                 type: string
@@ -63,6 +91,8 @@ export async function getAllProducts(req, res) {
  *         description: Product created successfully
  *       400:
  *         description: Invalid input
+ *       401:
+ *         description: Unauthorized - No token provided or invalid token
  *       500:
  *         description: Internal server error
  */
@@ -88,11 +118,28 @@ export async function createProduct(req, res) {
  * @swagger
  * /products/inventory:
  *   get:
- *     summary: Get product inventory
+ *     summary: Get product inventory (Protected)
  *     tags: [Product]
+ *     security:
+ *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: List of products with inventory details
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   name:
+ *                     type: string
+ *                   category:
+ *                     type: string
+ *                   quantity:
+ *                     type: number
+ *       401:
+ *         description: Unauthorized - No token provided or invalid token
  *       500:
  *         description: Internal server error
  */
@@ -114,34 +161,47 @@ export const getProductInventory = async (req, res) => {
  * @swagger
  * /products/search:
  *   get:
- *     summary: Get products with pagination and search
+ *     summary: Get products with pagination and search (Public)
  *     tags: [Product]
  *     parameters:
  *       - in: query
  *         name: page
- *         required: false
  *         schema:
  *           type: integer
- *           example: 1
+ *           default: 1
+ *         description: Page number
  *       - in: query
  *         name: limit
- *         required: false
  *         schema:
  *           type: integer
- *           example: 10
+ *           default: 10
+ *         description: Number of items per page
  *       - in: query
  *         name: category
- *         required: false
  *         schema:
  *           type: string
+ *         description: Category filter
  *       - in: query
  *         name: search
- *         required: false
  *         schema:
  *           type: string
+ *         description: Search term for product title or description
  *     responses:
  *       200:
  *         description: List of products with pagination
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 products:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                 totalPages:
+ *                   type: integer
+ *                 currentPage:
+ *                   type: integer
  *       500:
  *         description: Internal server error
  */
@@ -177,20 +237,20 @@ export const getProducts = async (req, res) => {
 
 /**
  * @swagger
- * /products/{id}:
+ * /products/id/{id}:
  *   get:
- *     summary: Get a product by ID
+ *     summary: Get a product by ID (Public)
  *     tags: [Product]
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
- *         description: The ID of the product
  *         schema:
  *           type: string
+ *         description: Product ID
  *     responses:
  *       200:
- *         description: Product details
+ *         description: Product details retrieved successfully
  *       404:
  *         description: Product not found
  *       500:
@@ -210,17 +270,19 @@ export const getProductById = async (req, res) => {
 
 /**
  * @swagger
- * /products/{id}:
+ * /products/id/{id}:
  *   put:
- *     summary: Update a product
+ *     summary: Update a product (Protected)
  *     tags: [Product]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
- *         description: The ID of the product
  *         schema:
  *           type: string
+ *         description: Product ID
  *     requestBody:
  *       required: true
  *       content:
@@ -230,19 +292,17 @@ export const getProductById = async (req, res) => {
  *             properties:
  *               title:
  *                 type: string
- *                 example: Updated Product Title
  *               description:
  *                 type: string
- *                 example: Updated Product Description
  *               price:
  *                 type: number
- *                 example: 89.99
  *               categoryId:
  *                 type: string
- *                 example: 60d5ec49f1b2c8b1f8c8e8e8
  *     responses:
  *       200:
  *         description: Product updated successfully
+ *       401:
+ *         description: Unauthorized - No token provided or invalid token
  *       404:
  *         description: Product not found
  *       500:
@@ -268,18 +328,22 @@ export const updateProduct = async (req, res) => {
  * @swagger
  * /products/{id}:
  *   delete:
- *     summary: Delete a product
+ *     summary: Delete a product (Protected)
  *     tags: [Product]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
- *         description: The ID of the product
  *         schema:
  *           type: string
+ *         description: Product ID
  *     responses:
  *       200:
  *         description: Product deleted successfully
+ *       401:
+ *         description: Unauthorized - No token provided or invalid token
  *       404:
  *         description: Product not found
  *       500:
@@ -297,31 +361,20 @@ export const deleteProduct = async (req, res) => {
   }
 };
 
-// Helper function to get user ID from token
-const getUserIdFromToken = (req) => {
-  const authHeader = req.headers.authorization;
-  const token = authHeader && authHeader.startsWith("Bearer ") ? authHeader.split(" ")[1] : null;
-
-  if (!token) {
-    throw new Error("Unauthorized - No Token Provided");
-  }
-
-  const decoded = jwt.verify(token, ENV_VARS.JWT_SECRET);
-  return decoded.userId; // Assuming the userId is stored in the token
-};
-
 /**
  * @swagger
  * /products/recommend:
  *   post:
- *     summary: Get recommended products based on a product name
- *     tags: [Products]
+ *     summary: Get recommended products based on a product name (Public)
+ *     tags: [Product]
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - productName
  *             properties:
  *               productName:
  *                 type: string
@@ -329,8 +382,23 @@ const getUserIdFromToken = (req) => {
  *     responses:
  *       200:
  *         description: List of recommended products
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 recommendations:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                 similarProducts:
+ *                   type: array
+ *                   items:
+ *                     type: object
  *       400:
  *         description: Invalid input
+ *       404:
+ *         description: No similar product found
  *       500:
  *         description: Internal server error
  */
@@ -342,25 +410,20 @@ export const recommendProducts = async (req, res) => {
       return res.status(400).json({ message: 'Product name is required.' });
     }
 
-    // Find the most similar product (this could be a database query as well)
     const similarProduct = await Product.findOne({ title: { $regex: productName, $options: 'i' } });
 
     if (!similarProduct) {
       return res.status(404).json({ message: 'No similar product found.' });
     }
 
-    // Get recommendations based on the similar product
     const recommendations = await getRecommendedProducts(similarProduct.title);
 
-    // Extract product names from recommendations, ensuring they are defined
     const recommendedProductNames = recommendations
       .map(rec => rec.Item)
-      .filter(item => item); // Filter out any undefined or null items
+      .filter(item => item);
 
-    // Load all products from the database
     const products = await Product.find();
 
-    // Find similar products based on the recommended product names
     const similarProducts = products.filter(product => 
       recommendedProductNames.some(recName => 
         product.title && product.title.toLowerCase().includes(recName.toLowerCase())
@@ -375,20 +438,35 @@ export const recommendProducts = async (req, res) => {
 
 /**
  * @swagger
- * /products/{id}/variants:
+ * /products/variants/{id}:
  *   get:
- *     summary: Get all variants of a product by product ID
+ *     summary: Get all variants of a product by product ID (Protected)
  *     tags: [Product]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
- *         description: The ID of the product
  *         schema:
  *           type: string
+ *         description: Product ID
  *     responses:
  *       200:
- *         description: List of product variants
+ *         description: List of product variants retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 variants:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *       401:
+ *         description: Unauthorized - No token provided or invalid token
  *       404:
  *         description: Product not found
  *       500:
@@ -396,16 +474,14 @@ export const recommendProducts = async (req, res) => {
  */
 export const getProductVariantsByProductId = async (req, res) => {
   try {
-    const { id } = req.params; // Get productId from the request parameters
+    const { id } = req.params;
 
-    // Find the product to ensure it exists
     const product = await Product.findById(id);
     if (!product) {
-      return res.status(404).json({ message: 'Product not found' });
+      return res.status(404).json({ success: false, message: 'Product not found' });
     }
 
-    // Fetch all variants associated with the productId
-    const variants = await ProductVariant.find({ productId: id }); // Assuming productId is the field in ProductVariant
+    const variants = await ProductVariant.find({ productId: id });
 
     res.status(200).json({ success: true, variants });
   } catch (error) {
@@ -418,34 +494,138 @@ export const getProductVariantsByProductId = async (req, res) => {
  * @swagger
  * /products/calculate-stock:
  *   post:
- *     summary: Calculate and update total stock for all products
+ *     summary: Calculate and update total stock for all products (Protected)
  *     tags: [Product]
+ *     security:
+ *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: Total stock calculated and updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *       401:
+ *         description: Unauthorized - No token provided or invalid token
  *       500:
  *         description: Internal server error
  */
 export const calculateTotalStock = async (req, res) => {
   try {
-    // Fetch all products
     const products = await Product.find();
 
     for (const product of products) {
-      // Fetch all variants for the current product
       const variants = await ProductVariant.find({ productId: product._id });
-
-      // Calculate total stock for the product
       const totalStock = variants.reduce((total, variant) => total + variant.quantity, 0);
-
-      // Update the product's total stock (if you have a field for total stock)
-      product.totalStock = totalStock; // Assuming you have a totalStock field in your product schema
-      await product.save(); // Save the updated product
+      product.totalStock = totalStock;
+      await product.save();
     }
 
     res.status(200).json({ success: true, message: 'Total stock calculated and updated for all products.' });
   } catch (error) {
     console.error('Error calculating total stock:', error.message);
     res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
+
+/**
+ * @swagger
+ * /products/variants/{variantId}/restock:
+ *   post:
+ *     summary: Restock a product variant (Protected)
+ *     tags: [Product]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: variantId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The ID of the product variant
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - quantity
+ *             properties:
+ *               quantity:
+ *                 type: number
+ *                 description: The quantity to add to current stock
+ *                 example: 10
+ *     responses:
+ *       200:
+ *         description: Variant restocked successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 variant:
+ *                   type: object
+ *       400:
+ *         description: Invalid quantity
+ *       401:
+ *         description: Unauthorized - No token provided or invalid token
+ *       404:
+ *         description: Variant not found
+ *       500:
+ *         description: Internal server error
+ */
+export const restockVariant = async (req, res) => {
+  try {
+    const { variantId } = req.params;
+    const { quantity } = req.body;
+
+    if (!quantity || quantity <= 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Please provide a valid quantity greater than 0' 
+      });
+    }
+
+    const variant = await ProductVariant.findById(variantId);
+    if (!variant) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Product variant not found' 
+      });
+    }
+
+    variant.quantity += quantity;
+    await variant.save();
+
+    const product = await Product.findById(variant.productId);
+    if (product) {
+      const variants = await ProductVariant.find({ productId: product._id });
+      const totalStock = variants.reduce((total, variant) => total + variant.quantity, 0);
+      product.totalStock = totalStock;
+      await product.save();
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Variant restocked successfully',
+      variant
+    });
+  } catch (error) {
+    console.error('Error in restockVariant controller:', error.message);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Internal server error',
+      error: error.message 
+    });
   }
 };

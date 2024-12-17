@@ -9,8 +9,10 @@ import {
   deleteProduct,
   recommendProducts,
   getProductVariantsByProductId,
-  calculateTotalStock
+  calculateTotalStock,
+  restockVariant
 } from '../controllers/product.controller.js';
+import { protectRoute } from '../middleware/protectRoute.js';
 
 const router = express.Router();
 
@@ -21,34 +23,19 @@ const router = express.Router();
  *   description: Product management
  */
 
-// Route to get all products
+// Public routes
 router.get('/', getAllProducts);
-
-// Route to create a new product
-router.post('/', createProduct);
-
-// Route to get product inventory
-router.get('/inventory', getProductInventory);
-
-// Route to search products with pagination
 router.get('/search', getProducts);
-
-// Route to get a product by ID
 router.get('/id/:id', getProductById);
-
-// Route to update a product
-router.put('/id/:id', updateProduct);
-
-// Route to delete a product
-router.delete('/:id', deleteProduct);
-
-// Route to get recommended products
 router.post('/recommend', recommendProducts);
 
-// Route to get product variants by product ID
-router.get('/variants/:id', getProductVariantsByProductId);
-
-// Route to calculate and update total stock for all products
-router.post('/calculate-stock', calculateTotalStock);
+// Protected routes (require authentication)
+router.post('/', protectRoute, createProduct);
+router.get('/inventory', protectRoute, getProductInventory);
+router.put('/id/:id', protectRoute, updateProduct);
+router.delete('/:id', protectRoute, deleteProduct);
+router.get('/variants/:id', protectRoute, getProductVariantsByProductId);
+router.post('/calculate-stock', protectRoute, calculateTotalStock);
+router.post('/variants/:variantId/restock', protectRoute, restockVariant);
 
 export default router; 
