@@ -792,46 +792,47 @@ export const initializeProducts = async (req, res) => {
 
       const product = new Product({
         title: productName,
-        description: `A high- quality ${ productName.toLowerCase() }`,
+        description: `A high-quality ${productName.toLowerCase()}`,
         price: Math.floor(Math.random() * (200 - 20) + 20) * 23000,
         categoryId,
         material: ['Cotton', 'Polyester', 'Leather', 'Wool', 'Denim'][Math.floor(Math.random() * 5)],
         totalStock: 0,
+        rating: (Math.random() * (5 - 4) + 4).toFixed(1),
         image: productImages[productName] || 'https://example.com/images/default.png'
       });
 
-    await product.save();
-    productsCreated++;
+      await product.save();
+      productsCreated++;
 
-    // Create product variants
-    for (const size of sizes) {
-      for (const color of colors) {
-        const variant = new ProductVariant({
-          productId: product._id,
-          size,
-          color,
-          quantity: Math.floor(Math.random() * 50) + 10
-        });
+      // Create product variants
+      for (const size of sizes) {
+        for (const color of colors) {
+          const variant = new ProductVariant({
+            productId: product._id,
+            size,
+            color,
+            quantity: Math.floor(Math.random() * 50) + 10
+          });
 
-        await variant.save();
-        variantsCreated++;
+          await variant.save();
+          variantsCreated++;
+        }
       }
     }
-  }
 
     res.status(200).json({
-    success: true,
-    message: 'Categories, products, and variants initialized successfully',
-    categoriesCreated: categories.length,
-    productsCreated,
-    variantsCreated
-  });
-} catch (error) {
-  console.error('Error initializing products:', error);
-  res.status(500).json({
-    success: false,
-    message: 'Error initializing products',
-    error: error.message
-  });
-}
+      success: true,
+      message: 'Categories, products, and variants initialized successfully',
+      categoriesCreated: categories.length,
+      productsCreated,
+      variantsCreated
+    });
+  } catch (error) {
+    console.error('Error initializing products:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error initializing products',
+      error: error.message
+    });
+  }
 };
