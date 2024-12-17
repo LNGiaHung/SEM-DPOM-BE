@@ -8,7 +8,8 @@ import {
   updateProduct,
   deleteProduct,
   recommendProducts,
-  getProductVariantsByProductId
+  getProductVariantsByProductId,
+  calculateTotalStock
 } from '../controllers/product.controller.js';
 
 const router = express.Router();
@@ -46,5 +47,8 @@ router.post('/recommend', recommendProducts);
 
 // Route to get product variants by product ID
 router.get('/variants/:id', getProductVariantsByProductId);
+
+// Route to calculate and update total stock for all products
+router.post('/calculate-stock', calculateTotalStock);
 
 export default router; 

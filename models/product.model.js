@@ -47,7 +47,7 @@ const productSchema = new mongoose.Schema(
 productSchema.methods.updateTotalStock = async function() {
   const ProductVariant = mongoose.model('ProductVariant');
   const variants = await ProductVariant.find({ productId: this._id });
-  this.totalStock = variants.reduce((sum, variant) => sum + variant.stock, 0);
+  this.totalStock = variants.reduce((sum, variant) => sum + variant.quantity, 0);
   await this.save();
 };
 

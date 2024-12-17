@@ -1,5 +1,4 @@
 import {Product} from "../models/product.model.js";
-import {Category} from "../models/category.model.js";
 import { getRecommendedProducts } from '../services/recommendation.service.js';
 import jwt from 'jsonwebtoken';
 import fs from 'fs';
@@ -412,5 +411,41 @@ export const getProductVariantsByProductId = async (req, res) => {
   } catch (error) {
     console.log("Error in getProductVariantsByProductId controller", error.message);
     res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+/**
+ * @swagger
+ * /products/calculate-stock:
+ *   post:
+ *     summary: Calculate and update total stock for all products
+ *     tags: [Product]
+ *     responses:
+ *       200:
+ *         description: Total stock calculated and updated successfully
+ *       500:
+ *         description: Internal server error
+ */
+export const calculateTotalStock = async (req, res) => {
+  try {
+    // Fetch all products
+    const products = await Product.find();
+
+    for (const product of products) {
+      // Fetch all variants for the current product
+      const variants = await ProductVariant.find({ productId: product._id });
+
+      // Calculate total stock for the product
+      const totalStock = variants.reduce((total, variant) => total + variant.quantity, 0);
+
+      // Update the product's total stock (if you have a field for total stock)
+      product.totalStock = totalStock; // Assuming you have a totalStock field in your product schema
+      await product.save(); // Save the updated product
+    }
+
+    res.status(200).json({ success: true, message: 'Total stock calculated and updated for all products.' });
+  } catch (error) {
+    console.error('Error calculating total stock:', error.message);
+    res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };

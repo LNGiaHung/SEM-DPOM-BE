@@ -15,7 +15,7 @@ const productVariantSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    stock: {
+    quantity: {
       type: Number,
       required: true,
       default: 0,
@@ -28,7 +28,7 @@ const productVariantSchema = new mongoose.Schema(
 );
 
 // Middleware để cập nhật totalStock của product sau khi lưu variant
-productVariantSchema.post('save', async function() {
+productVariantSchema.post('save', async function () {
   const Product = mongoose.model('Product');
   const product = await Product.findById(this.productId);
   if (product) {
@@ -37,7 +37,7 @@ productVariantSchema.post('save', async function() {
 });
 
 // Middleware để cập nhật totalStock của product sau khi xóa variant
-productVariantSchema.post('remove', async function() {
+productVariantSchema.post('remove', async function () {
   const Product = mongoose.model('Product');
   const product = await Product.findById(this.productId);
   if (product) {
