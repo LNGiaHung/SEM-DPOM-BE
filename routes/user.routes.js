@@ -5,7 +5,8 @@ import {
   createUser,
   getCurrentUser,
   getUserById,
-  deleteUser
+  deleteUser,
+  updateUserById
 } from "../controllers/user.controller.js";
 import { protectRoute } from "../middleware/protectRoute.js";
 
@@ -35,5 +36,8 @@ router.get("/:id", protectRoute, getUserById);
 
 // Route to delete user
 router.delete("/:id", protectRoute, deleteUser);
+
+// Route to update user information
+router.put('/:id', protectRoute, updateUserById);
 
 export default router; 

@@ -358,6 +358,93 @@ export const getUserById = async (req, res) => {
 
 /**
  * @swagger
+ * /users/update/{id}:
+ *   put:
+ *     summary: Update user information by ID
+ *     tags: [User]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: User ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               username:
+ *                 type: string
+ *               firstName:
+ *                 type: string
+ *               lastName:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *               gender:
+ *                 type: string
+ *               address:
+ *                 type: string
+ *               phoneNumber:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: User updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 user:
+ *                   type: object
+ *       400:
+ *         description: No fields to update
+ *       401:
+ *         description: Unauthorized - No Token Provided
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Server error
+ */
+export const updateUserById = async (req, res) => {
+  try {
+    const { id } = req.params; // Get user ID from the URL parameters
+    const updates = req.body; // Get the fields to update from the request body
+
+    // Validate the request body
+    if (!updates || Object.keys(updates).length === 0) {
+      return res.status(400).json({ success: false, message: "No fields to update" });
+    }
+
+    // Update the user in the database
+    const updatedUser = await User.findByIdAndUpdate(id, updates, { new: true, runValidators: true });
+
+    if (!updatedUser) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    // Exclude sensitive information like password from the response
+    const { password, ...userWithoutPassword } = updatedUser._doc;
+
+    res.status(200).json({
+      success: true,
+      user: userWithoutPassword,
+    });
+  } catch (error) {
+    console.error("Error in updateUserById controller:", error);
+    res.status(500).json({ success: false, message: "Internal server error", error: error.message });
+  }
+};
+
+/**
+ * @swagger
  * /users/{id}:
  *   delete:
  *     summary: Delete user by ID
