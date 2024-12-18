@@ -135,6 +135,7 @@ export const getAllOrders = async (req, res) => {
     // Map the orders to include only the required fields
     const formattedOrders = orders.map(order => ({
       orderId: order._id,
+      userId: order.userId,
       orderDate: order.orderDate,
       total: order.total,
       status: order.status, // Include status in the response
