@@ -397,3 +397,144 @@ export const getOrderDetails = async (req, res) => {
     });
   }
 };
+
+/**
+ * @swagger
+ * /orders/user:
+ *   get:
+ *     summary: Get all orders for the authenticated user (Protected)
+ *     tags: [Order]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *         description: Filter orders by status (optional)
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number for pagination
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Number of items per page
+ *     responses:
+ *       200:
+ *         description: User's orders retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 orders:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                       total:
+ *                         type: number
+ *                       status:
+ *                         type: string
+ *                       shippingAddress:
+ *                         type: string
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                       products:
+ *                         type: array
+ *                         items:
+ *                           type: object
+ *                       stats:
+ *                         type: object
+ *                         properties:
+ *                           totalItems:
+ *                             type: number
+ *                           subtotal:
+ *                             type: number
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     currentPage:
+ *                       type: integer
+ *                     totalPages:
+ *                       type: integer
+ *                     totalOrders:
+ *                       type: integer
+ *       401:
+ *         description: Unauthorized - No token provided or invalid token
+ *       500:
+ *         description: Internal server error
+ */
+export const getUserOrders = async (req, res) => {
+  try {
+    const userId = req.user._id; // Get user ID from the authenticated request
+    const { status, page = 1, limit = 10 } = req.query;
+
+    // Build query
+    const query = { userId };
+    if (status) {
+      query.status = status;
+    }
+
+    // Calculate skip value for pagination
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    // Get total count for pagination
+    const totalOrders = await Order.countDocuments(query);
+
+    // Find orders with pagination
+    const orders = await Order.find(query)
+      .populate({
+        path: 'products',
+        populate: {
+          path: 'productId',
+          model: 'Product',
+          select: 'title image price'
+        }
+      })
+      .sort({ createdAt: -1 }) // Sort by creation date, newest first
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    // Process each order to include statistics
+    const processedOrders = orders.map(order => {
+      const orderObj = order.toObject();
+      const stats = {
+        totalItems: order.products.reduce((sum, item) => sum + item.quantity, 0),
+        subtotal: order.products.reduce((sum, item) => sum + (item.price * item.quantity), 0)
+      };
+
+      return {
+        ...orderObj,
+        stats
+      };
+    });
+
+    res.status(200).json({
+      success: true,
+      orders: processedOrders,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages: Math.ceil(totalOrders / parseInt(limit)),
+        totalOrders
+      }
+    });
+  } catch (error) {
+    console.error('Error in getUserOrders:', error.message);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};

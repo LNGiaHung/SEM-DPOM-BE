@@ -3,8 +3,7 @@ import {
   createOrder,
   getOrderDetails,
   getUserOrders,
-  updateOrderStatus,
-  deleteOrder
+  updateOrderStatus
 } from '../controllers/order.controller.js';
 import { protectRoute } from '../middleware/protectRoute.js';
 
@@ -25,6 +24,5 @@ router.post('/', createOrder);
 router.get('/user', getUserOrders);
 router.get('/:orderId', getOrderDetails);
 router.put('/:orderId/status', updateOrderStatus);
-router.delete('/:orderId', deleteOrder);
 
 export default router;
