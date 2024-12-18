@@ -5,6 +5,8 @@ import { dirname, join } from 'path';
 import { ProductVariant } from "../models/productVariant.model.js";
 import { Category } from "../models/category.model.js";
 import cloudinary, { validateCloudinaryConnection } from '../config/cloudinary.js';
+import { Order } from "../models/order.model.js";
+import { OrderProduct } from "../models/orderProduct.model.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -832,6 +834,211 @@ export const initializeProducts = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error initializing products',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * @swagger
+ * /products/order/{orderId}:
+ *   get:
+ *     summary: Get order details with product information (Protected)
+ *     tags: [Product]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: orderId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Order ID
+ *     responses:
+ *       200:
+ *         description: Order details retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 order:
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                     userId:
+ *                       type: string
+ *                     total:
+ *                       type: number
+ *                     status:
+ *                       type: string
+ *                     products:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           productId:
+ *                             type: object
+ *                           quantity:
+ *                             type: number
+ *                           price:
+ *                             type: number
+ *       401:
+ *         description: Unauthorized - No token provided or invalid token
+ *       404:
+ *         description: Order not found
+ *       500:
+ *         description: Internal server error
+ */
+export const getOrderDetails = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+
+    // Find the order and populate product details
+    const order = await Order.findById(orderId)
+      .populate({
+        path: 'products',
+        populate: {
+          path: 'productId',
+          model: 'Product',
+          select: 'title description image price rating'
+        }
+      });
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      order
+    });
+  } catch (error) {
+    console.error('Error in getOrderDetails:', error.message);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * @swagger
+ * /products/top-selling:
+ *   get:
+ *     summary: Get top-selling products with sales count and rank (Protected)
+ *     tags: [Product]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Number of top products to return
+ *     responses:
+ *       200:
+ *         description: Top selling products retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 products:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       product:
+ *                         type: object
+ *                         properties:
+ *                           _id:
+ *                             type: string
+ *                           title:
+ *                             type: string
+ *                           price:
+ *                             type: number
+ *                           image:
+ *                             type: string
+ *                       totalSales:
+ *                         type: number
+ *                       rank:
+ *                         type: number
+ *       401:
+ *         description: Unauthorized - No token provided or invalid token
+ *       500:
+ *         description: Internal server error
+ */
+export const getTopSellingProducts = async (req, res) => {
+  try {
+    const { limit = 10 } = req.query;
+
+    // Aggregate pipeline to get top selling products
+    const topProducts = await OrderProduct.aggregate([
+      // Group by productId and sum quantities
+      {
+        $group: {
+          _id: '$productId',
+          totalSales: { $sum: '$quantity' }
+        }
+      },
+      // Sort by total sales in descending order
+      { $sort: { totalSales: -1 } },
+      // Limit to requested number of products
+      { $limit: parseInt(limit) },
+      // Add rank field
+      {
+        $addFields: {
+          rank: { $add: [{ $indexOfArray: [{ $slice: ['$totalSales', parseInt(limit)] }, '$totalSales'] }, 1] }
+        }
+      },
+      // Lookup product details
+      {
+        $lookup: {
+          from: 'products',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'product'
+        }
+      },
+      // Unwind the product array
+      { $unwind: '$product' },
+      // Project the final format
+      {
+        $project: {
+          _id: 0,
+          product: {
+            _id: '$product._id',
+            title: '$product.title',
+            price: '$product.price',
+            image: '$product.image',
+            rating: '$product.rating'
+          },
+          totalSales: 1,
+          rank: 1
+        }
+      }
+    ]);
+
+    res.status(200).json({
+      success: true,
+      products: topProducts
+    });
+  } catch (error) {
+    console.error('Error in getTopSellingProducts:', error.message);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
       error: error.message
     });
   }

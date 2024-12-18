@@ -11,7 +11,8 @@ import {
   getProductVariantsByProductId,
   calculateTotalStock,
   restockVariant,
-  initializeProducts
+  initializeProducts,
+  getTopSellingProducts
 } from '../controllers/product.controller.js';
 import { protectRoute } from '../middleware/protectRoute.js';
 
@@ -39,5 +40,6 @@ router.get('/variants/:id', protectRoute, getProductVariantsByProductId);
 router.post('/calculate-stock', protectRoute, calculateTotalStock);
 router.post('/variants/restock', protectRoute, restockVariant);
 router.post('/init', protectRoute, initializeProducts);
+router.get('/top-selling', protectRoute, getTopSellingProducts);
 
 export default router; 

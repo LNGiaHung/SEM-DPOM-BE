@@ -1,11 +1,12 @@
 import express from 'express';
 import {
-  getAllOrders,
   createOrder,
-  getOrderById,
+  getOrderDetails,
+  getUserOrders,
   updateOrderStatus,
-  getPendingOrders
+  deleteOrder
 } from '../controllers/order.controller.js';
+import { protectRoute } from '../middleware/protectRoute.js';
 
 const router = express.Router();
 
@@ -16,19 +17,14 @@ const router = express.Router();
  *   description: Order management
  */
 
-// Route to get all orders for the authenticated user
-router.get('/', getAllOrders);
+// All routes require authentication
+router.use(protectRoute);
 
-// Route to create a new order
+// Order routes
 router.post('/', createOrder);
-
-// Route to get an order by ID
-router.get('/id/:id', getOrderById);
-
-// Route to update the status of an order
-router.put('/status', updateOrderStatus);
-
-// Route to get all pending orders
-router.get('/pending', getPendingOrders);
+router.get('/user', getUserOrders);
+router.get('/:orderId', getOrderDetails);
+router.put('/:orderId/status', updateOrderStatus);
+router.delete('/:orderId', deleteOrder);
 
 export default router;

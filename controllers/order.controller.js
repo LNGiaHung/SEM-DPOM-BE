@@ -130,7 +130,7 @@ export const createOrder = async (req, res) => {
 export const getAllOrders = async (req, res) => {
   try {
     // Fetch all orders, selecting only the required fields including status
-    const orders = await Order.find({}, 'orderDate total status shippingAddress'); // Select orderDate, total, status, and shippingAddress
+    const orders = await Order.find({}, 'userId orderDate total status shippingAddress'); // Select orderDate, total, status, and shippingAddress
 
     // Map the orders to include only the required fields
     const formattedOrders = orders.map(order => ({
@@ -265,5 +265,135 @@ export const getPendingOrders = async (req, res) => {
     res.status(200).json({ success: true, orders });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * @swagger
+ * /orders/{orderId}:
+ *   get:
+ *     summary: Get detailed order information (Protected)
+ *     tags: [Order]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: orderId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Order ID
+ *     responses:
+ *       200:
+ *         description: Order details retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 order:
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                     userId:
+ *                       type: string
+ *                     total:
+ *                       type: number
+ *                     status:
+ *                       type: string
+ *                     shippingAddress:
+ *                       type: string
+ *                     createdAt:
+ *                       type: string
+ *                       format: date-time
+ *                     products:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           productId:
+ *                             type: object
+ *                             properties:
+ *                               _id:
+ *                                 type: string
+ *                               title:
+ *                                 type: string
+ *                               description:
+ *                                 type: string
+ *                               image:
+ *                                 type: string
+ *                               price:
+ *                                 type: number
+ *                               rating:
+ *                                 type: number
+ *                           quantity:
+ *                             type: number
+ *                           price:
+ *                             type: number
+ *       401:
+ *         description: Unauthorized - No token provided or invalid token
+ *       403:
+ *         description: Forbidden - User not authorized to view this order
+ *       404:
+ *         description: Order not found
+ *       500:
+ *         description: Internal server error
+ */
+export const getOrderDetails = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const userId = req.user._id; // Get user ID from the authenticated request
+
+    // Find the order and populate product details
+    const order = await Order.findById(orderId)
+      .populate({
+        path: 'products',
+        populate: {
+          path: 'productId',
+          model: 'Product',
+          select: 'title description image price rating'
+        }
+      });
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found'
+      });
+    }
+
+    // Check if the user is authorized to view this order
+    if (order.userId.toString() !== userId.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'You are not authorized to view this order'
+      });
+    }
+
+    // Calculate additional order statistics
+    const orderStats = {
+      totalItems: order.products.reduce((sum, item) => sum + item.quantity, 0),
+      subtotal: order.products.reduce((sum, item) => sum + (item.price * item.quantity), 0),
+      orderDate: order.createdAt,
+      lastUpdated: order.updatedAt
+    };
+
+    res.status(200).json({
+      success: true,
+      order: {
+        ...order.toObject(),
+        stats: orderStats
+      }
+    });
+  } catch (error) {
+    console.error('Error in getOrderDetails:', error.message);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
   }
 };
