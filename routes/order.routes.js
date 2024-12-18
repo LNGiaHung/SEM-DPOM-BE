@@ -1,9 +1,12 @@
 import express from 'express';
 import {
   createOrder,
-  getOrderDetails,
+  getAllOrders,
+  getOrderById,
   getUserOrders,
-  updateOrderStatus
+  updateOrderStatus,
+  getOrderDetails,
+  getPendingOrders
 } from '../controllers/order.controller.js';
 import { protectRoute } from '../middleware/protectRoute.js';
 
@@ -20,9 +23,12 @@ const router = express.Router();
 router.use(protectRoute);
 
 // Order routes
-router.post('/', createOrder);
-router.get('/user', getUserOrders);
-router.get('/:orderId', getOrderDetails);
-router.put('/:orderId/status', updateOrderStatus);
+router.post('/', createOrder);                          // Create new order
+router.get('/', getAllOrders);                          // Get all orders (admin)
+router.get('/user', getUserOrders);                     // Get user's orders
+router.get('/pending', getPendingOrders);               // Get pending orders
+router.get('/detail/:orderId', getOrderDetails);        // Get detailed order info
+router.get('/id/:orderId', getOrderById);              // Get basic order info
+router.put('/status', updateOrderStatus);               // Update order status
 
 export default router;

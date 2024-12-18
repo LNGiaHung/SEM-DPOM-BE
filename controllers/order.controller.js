@@ -150,13 +150,13 @@ export const getAllOrders = async (req, res) => {
 
 /**
  * @swagger
- * /orders/id/{id}:
+ * /orders/id/{orderId}:
  *   get:
  *     summary: Get an order by order ID
  *     tags: [Order]
  *     parameters:
  *       - in: path
- *         name: id
+ *         name: orderId
  *         required: true
  *         description: The ID of the order
  *         schema:
@@ -171,10 +171,10 @@ export const getAllOrders = async (req, res) => {
  */
 export const getOrderById = async (req, res) => {
   try {
-    const { id } = req.params; // Get order ID from the URL parameters
+    const { orderId } = req.params; // Get order ID from the URL parameters
 
     // Find the order by ID
-    const order = await Order.findById(id);
+    const order = await Order.findById(orderId);
     if (!order) {
       return res.status(404).json({ success: false, message: 'Order not found' });
     }
@@ -183,19 +183,21 @@ export const getOrderById = async (req, res) => {
     const orderProducts = await OrderProduct.find({ orderId: order._id })
       .populate({
         path: 'productId', // Populate the productId in OrderProduct to get product details
-        select: 'title price', // Select only the fields you need from the Product model
+        select: 'title price image', // Select only the fields you need from the Product model
       });
 
     // Format the order details to include necessary information
     const orderDetails = {
       orderId: order._id,
-      orderDate: order.orderDate,
+      userId: order.userId,
+      orderDate: order.createdAt,
       total: order.total,
       status: order.status,
       shippingAddress: order.shippingAddress,
       items: orderProducts.map(item => ({
-        productId: item.productId._id, // Include product ID
-        productName: item.productId.title, // Get the product title
+        productId: item.productId._id,
+        productName: item.productId.title,
+        productImage: item.productId.image,
         quantity: item.quantity,
         price: item.price,
       })),
@@ -203,6 +205,7 @@ export const getOrderById = async (req, res) => {
 
     res.status(200).json({ success: true, order: orderDetails });
   } catch (error) {
+    console.error('Error in getOrderById:', error.message);
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -477,7 +480,7 @@ export const getOrderDetails = async (req, res) => {
  */
 export const getUserOrders = async (req, res) => {
   try {
-    const userId = req.user._id; // Get user ID from the authenticated request
+    const userId = getUserIdFromToken(req); // Get user ID from the authenticated request
     const { status, page = 1, limit = 10 } = req.query;
 
     // Build query

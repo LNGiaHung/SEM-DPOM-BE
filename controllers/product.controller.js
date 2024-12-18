@@ -933,75 +933,34 @@ export const getOrderDetails = async (req, res) => {
  * @swagger
  * /products/top-selling:
  *   get:
- *     summary: Get top-selling products with sales count and rank (Protected)
+ *     summary: Get top 3 selling products
  *     tags: [Product]
  *     security:
  *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: limit
- *         schema:
- *           type: integer
- *           default: 10
- *         description: Number of top products to return
  *     responses:
  *       200:
- *         description: Top selling products retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 products:
- *                   type: array
- *                   items:
- *                     type: object
- *                     properties:
- *                       product:
- *                         type: object
- *                         properties:
- *                           _id:
- *                             type: string
- *                           title:
- *                             type: string
- *                           price:
- *                             type: number
- *                           image:
- *                             type: string
- *                       totalSales:
- *                         type: number
- *                       rank:
- *                         type: number
+ *         description: Top 3 selling products retrieved successfully
  *       401:
- *         description: Unauthorized - No token provided or invalid token
+ *         description: Unauthorized
  *       500:
  *         description: Internal server error
  */
 export const getTopSellingProducts = async (req, res) => {
   try {
-    const { limit = 10 } = req.query;
-
-    // Aggregate pipeline to get top selling products
+    // Aggregate pipeline to get top 3 selling products
     const topProducts = await OrderProduct.aggregate([
-      // Group by productId and sum quantities
+      // Group by productId and calculate sales metrics
       {
         $group: {
           _id: '$productId',
-          totalSales: { $sum: '$quantity' }
+          quantitySold: { $sum: '$quantity' },
+          revenue: { $sum: { $multiply: ['$price', '$quantity'] } }
         }
       },
-      // Sort by total sales in descending order
-      { $sort: { totalSales: -1 } },
-      // Limit to requested number of products
-      { $limit: parseInt(limit) },
-      // Add rank field
-      {
-        $addFields: {
-          rank: { $add: [{ $indexOfArray: [{ $slice: ['$totalSales', parseInt(limit)] }, '$totalSales'] }, 1] }
-        }
-      },
+      // Sort by quantity sold in descending order
+      { $sort: { quantitySold: -1 } },
+      // Get only top 3
+      { $limit: 3 },
       // Lookup product details
       {
         $lookup: {
@@ -1013,26 +972,22 @@ export const getTopSellingProducts = async (req, res) => {
       },
       // Unwind the product array
       { $unwind: '$product' },
-      // Project the final format
+      // Format the output
       {
         $project: {
           _id: 0,
-          product: {
-            _id: '$product._id',
-            title: '$product.title',
-            price: '$product.price',
-            image: '$product.image',
-            rating: '$product.rating'
-          },
-          totalSales: 1,
-          rank: 1
+          productName: '$product.title',
+          quantitySold: 1,
+          revenue: {
+            $round: ['$revenue', 0] // Round to whole numbers
+          }
         }
       }
     ]);
 
     res.status(200).json({
       success: true,
-      products: topProducts
+      topProducts
     });
   } catch (error) {
     console.error('Error in getTopSellingProducts:', error.message);
